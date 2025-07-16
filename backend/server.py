@@ -69,6 +69,37 @@ except Exception as e:
 # Security
 security = HTTPBearer()
 
+# Authentication dependency
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> UserDB:
+    """Get current authenticated user."""
+    token = credentials.credentials
+    email = verify_token(token)
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication token"
+        )
+    
+    user = await db_service.get_user_by_email(email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+    
+    return user
+
+# Optional authentication dependency
+async def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> Optional[UserDB]:
+    """Get current authenticated user (optional)."""
+    if not credentials:
+        return None
+    
+    try:
+        return await get_current_user(credentials)
+    except HTTPException:
+        return None
+
 @app.get("/")
 async def root():
     return {"message": "AI Voice Assistant API is running"}
