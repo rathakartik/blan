@@ -45,20 +45,16 @@ except Exception as e:
 try:
     groq_api_key = os.getenv("GROQ_API_KEY")
     if groq_api_key:
-        groq_client = Groq(api_key=groq_api_key)
+        # Set the API key as environment variable for GROQ client
+        os.environ["GROQ_API_KEY"] = groq_api_key
+        groq_client = Groq()
         logger.info("GROQ client initialized successfully")
     else:
         logger.warning("GROQ_API_KEY not found in environment variables")
         groq_client = None
 except Exception as e:
     logger.error(f"GROQ initialization failed: {e}")
-    # Try alternative initialization
-    try:
-        groq_client = Groq()
-        logger.info("GROQ client initialized with default settings")
-    except Exception as e2:
-        logger.error(f"GROQ alternative initialization failed: {e2}")
-        groq_client = None
+    groq_client = None
 
 # Security
 security = HTTPBearer()
