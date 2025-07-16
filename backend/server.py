@@ -207,7 +207,7 @@ async def get_widget_config(request: Request):
         }
         
         # If database is available, try to get custom config
-        if db:
+        if db is not None:
             try:
                 custom_config = db.widget_configs.find_one({"site_id": site_id})
                 if custom_config:
