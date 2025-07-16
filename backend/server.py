@@ -52,7 +52,13 @@ try:
         groq_client = None
 except Exception as e:
     logger.error(f"GROQ initialization failed: {e}")
-    groq_client = None
+    # Try alternative initialization
+    try:
+        groq_client = Groq()
+        logger.info("GROQ client initialized with default settings")
+    except Exception as e2:
+        logger.error(f"GROQ alternative initialization failed: {e2}")
+        groq_client = None
 
 # Security
 security = HTTPBearer()
