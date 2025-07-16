@@ -43,8 +43,13 @@ except Exception as e:
 
 # Initialize GROQ client
 try:
-    groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-    logger.info("GROQ client initialized successfully")
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    if groq_api_key:
+        groq_client = Groq(api_key=groq_api_key)
+        logger.info("GROQ client initialized successfully")
+    else:
+        logger.warning("GROQ_API_KEY not found in environment variables")
+        groq_client = None
 except Exception as e:
     logger.error(f"GROQ initialization failed: {e}")
     groq_client = None
