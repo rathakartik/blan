@@ -1,15 +1,21 @@
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Depends, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import HTMLResponse
 from pymongo import MongoClient
 from groq import Groq
 import os
 from dotenv import load_dotenv
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
+
+# Import new modules
+from models import *
+from auth import *
+from database import DatabaseService
 
 # Load environment variables
 load_dotenv()
