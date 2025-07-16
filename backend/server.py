@@ -66,8 +66,8 @@ async def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
-        "mongodb": "connected" if db else "disconnected",
-        "groq": "connected" if groq_client else "disconnected",
+        "mongodb": "connected" if db is not None else "disconnected",
+        "groq": "connected" if groq_client is not None else "disconnected",
         "timestamp": datetime.utcnow().isoformat()
     }
 
