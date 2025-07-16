@@ -43,9 +43,13 @@ try:
     # Test connection
     mongo_client.admin.command('ping')
     logger.info("MongoDB connected successfully")
+    
+    # Initialize database service
+    db_service = DatabaseService(mongo_client)
 except Exception as e:
     logger.error(f"MongoDB connection failed: {e}")
     db = None
+    db_service = None
 
 # Initialize GROQ client
 try:
