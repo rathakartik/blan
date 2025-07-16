@@ -6,9 +6,18 @@
 
 ### ✅ Completed Tasks:
 - Project planning and architecture design
+- Project structure setup (backend/, frontend/, scripts/)
+- FastAPI backend with basic structure
+- React frontend for widget development
+- MongoDB connection configuration
+- Environment variables setup
+- VoiceWidget component with Web Speech API integration
+- Widget utility functions
+- Demo page for testing
+- Supervisor configuration
 
 ### 🚧 In Progress:
-- [ ] Project structure setup
+- [ ] Testing voice widget functionality
 
 ### 📝 Pending Tasks:
 
