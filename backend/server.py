@@ -237,7 +237,7 @@ async def log_interaction(request: Request):
             "ip_address": request.client.host
         }
         
-        if db:
+        if db is not None:
             try:
                 db.interactions.insert_one(interaction_data)
                 logger.info(f"Interaction logged: {interaction_data['interaction_type']}")
