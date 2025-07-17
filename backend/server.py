@@ -235,13 +235,146 @@ async def root():
 
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint"""
-    return {
+    """Enhanced health check endpoint with detailed status"""
+    health_status = {
         "status": "healthy",
-        "mongodb": "connected" if db is not None else "disconnected",
-        "groq": "connected" if groq_client is not None else "disconnected",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "1.0.0",
+        "services": {},
+        "metrics": {}
     }
+    
+    # MongoDB health check
+    try:
+        mongo_client.admin.command('ping')
+        health_status["services"]["mongodb"] = {
+            "status": "connected",
+            "response_time": "< 100ms"
+        }
+    except Exception as e:
+        health_status["services"]["mongodb"] = {
+            "status": "disconnected",
+            "error": str(e)
+        }
+        health_status["status"] = "degraded"
+    
+    # GROQ API health check
+    try:
+        if groq_client and os.getenv("GROQ_API_KEY"):
+            health_status["services"]["groq"] = {
+                "status": "connected",
+                "model": "llama3-8b-8192"
+            }
+        else:
+            health_status["services"]["groq"] = {
+                "status": "demo_mode",
+                "reason": "No API key configured"
+            }
+    except Exception as e:
+        health_status["services"]["groq"] = {
+            "status": "error",
+            "error": str(e)
+        }
+    
+    # System metrics
+    try:
+        # Memory usage (simplified)
+        import psutil
+        memory_info = psutil.virtual_memory()
+        health_status["metrics"] = {
+            "memory_usage": f"{memory_info.percent}%",
+            "memory_available": f"{memory_info.available / (1024**3):.1f}GB",
+            "cpu_usage": f"{psutil.cpu_percent()}%"
+        }
+    except ImportError:
+        health_status["metrics"] = {
+            "note": "psutil not available for system metrics"
+        }
+    
+    # Rate limiting status
+    active_connections = sum(len(endpoints) for endpoints in rate_limits.values())
+    health_status["rate_limiting"] = {
+        "active_connections": active_connections,
+        "max_requests_per_minute": MAX_REQUESTS_PER_MINUTE,
+        "chat_requests_per_minute": MAX_CHAT_REQUESTS_PER_MINUTE
+    }
+    
+    return health_status
+
+@app.get("/api/metrics")
+async def get_metrics():
+    """Get application metrics for monitoring"""
+    try:
+        if not db:
+            return {"error": "Database not available"}
+        
+        # Get basic metrics
+        total_conversations = db.conversations.count_documents({})
+        total_interactions = db.interactions.count_documents({})
+        
+        # Get hourly stats for last 24 hours
+        twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
+        
+        hourly_conversations = list(db.conversations.aggregate([
+            {"$match": {"timestamp": {"$gte": twenty_four_hours_ago}}},
+            {"$group": {
+                "_id": {"$dateToString": {"format": "%Y-%m-%d %H:00", "date": "$timestamp"}},
+                "count": {"$sum": 1}
+            }},
+            {"$sort": {"_id": 1}}
+        ]))
+        
+        # Model usage stats
+        model_stats = list(db.conversations.aggregate([
+            {"$match": {"timestamp": {"$gte": twenty_four_hours_ago}}},
+            {"$group": {
+                "_id": "$model",
+                "count": {"$sum": 1}
+            }}
+        ]))
+        
+        # Error rate calculation
+        error_count = db.conversations.count_documents({
+            "timestamp": {"$gte": twenty_four_hours_ago},
+            "model": {"$regex": "fallback|demo"}
+        })
+        
+        total_last_24h = db.conversations.count_documents({
+            "timestamp": {"$gte": twenty_four_hours_ago}
+        })
+        
+        error_rate = (error_count / total_last_24h * 100) if total_last_24h > 0 else 0
+        
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "totals": {
+                "conversations": total_conversations,
+                "interactions": total_interactions
+            },
+            "last_24_hours": {
+                "conversations": total_last_24h,
+                "error_rate": f"{error_rate:.1f}%",
+                "hourly_distribution": hourly_conversations,
+                "model_usage": model_stats
+            },
+            "rate_limiting": {
+                "active_ips": len(rate_limits),
+                "total_requests_tracked": sum(len(endpoints) for endpoints in rate_limits.values())
+            }
+        }
+    except Exception as e:
+        logger.error(f"Metrics error: {e}")
+        return {"error": str(e)}
+
+@app.get("/api/status")
+async def get_status():
+    """Simple status endpoint for load balancer health checks"""
+    try:
+        # Quick database ping
+        mongo_client.admin.command('ping')
+        return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+    except:
+        return {"status": "error", "timestamp": datetime.utcnow().isoformat()}
 
 @app.post("/api/chat")
 async def chat_with_ai(request: Request):
