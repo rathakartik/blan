@@ -905,6 +905,30 @@ Guidelines:
     
     return base_prompt
 
+def filter_ai_response(response: str) -> str:
+    """Filter AI responses for inappropriate content"""
+    if not response:
+        return "I apologize, but I couldn't generate a proper response. Please try again."
+    
+    # Remove any potential script injection
+    for pattern in BLOCKED_PATTERNS:
+        response = re.sub(pattern, '', response, flags=re.IGNORECASE)
+    
+    # Basic profanity filter (extend as needed)
+    profanity_words = [
+        'fuck', 'shit', 'damn', 'hell', 'bitch', 'ass', 'crap',
+        'piss', 'bastard', 'whore', 'slut', 'retard'
+    ]
+    
+    for word in profanity_words:
+        response = re.sub(r'\b' + re.escape(word) + r'\b', '***', response, flags=re.IGNORECASE)
+    
+    # Ensure response is not too long for voice
+    if len(response) > 500:
+        response = response[:497] + "..."
+    
+    return response.strip()
+
 def generate_contextual_demo_response(message: str, conversation_history: List[Dict[str, Any]]) -> str:
     """Generate demo responses with conversation context"""
     message_lower = message.lower()
