@@ -690,7 +690,7 @@ async def log_interaction(request: Request):
 async def get_conversation_history(session_id: str, site_id: str, limit: int = 10) -> List[Dict[str, Any]]:
     """Get conversation history for a session"""
     try:
-        if not db:
+        if db is None:
             return []
         
         conversations = list(db.conversations.find({
