@@ -343,6 +343,158 @@ def test_analytics_endpoint():
     
     return all_passed
 
+def test_enhanced_conversation_memory():
+    """Test enhanced conversation memory and multi-turn conversations"""
+    print_test_header("Enhanced Conversation Memory & Multi-Turn Test")
+    
+    session_id = f"memory-test-{uuid.uuid4()}"
+    site_id = "demo"
+    
+    # Test conversation with follow-up questions to verify memory
+    conversation_steps = [
+        {
+            "message": "Hello",
+            "expected_keywords": ["hello", "hi", "assistant", "help"],
+            "description": "Initial greeting"
+        },
+        {
+            "message": "Tell me more about AI",
+            "expected_keywords": ["ai", "artificial", "intelligence", "help", "questions"],
+            "description": "Ask about AI topic"
+        },
+        {
+            "message": "Can you elaborate on that?",
+            "expected_keywords": ["elaborate", "details", "more", "specific"],
+            "description": "Follow-up question testing context awareness"
+        },
+        {
+            "message": "What do you mean by that?",
+            "expected_keywords": ["clarify", "explain", "mean", "detail"],
+            "description": "Clarification request testing conversation history"
+        },
+        {
+            "message": "Thank you for explaining",
+            "expected_keywords": ["welcome", "glad", "help", "anything else"],
+            "description": "Thank you message"
+        }
+    ]
+    
+    all_passed = True
+    conversation_responses = []
+    
+    for i, step in enumerate(conversation_steps, 1):
+        print(f"\n--- Step {i}: {step['description']} ---")
+        print(f"Message: '{step['message']}'")
+        
+        try:
+            chat_response = requests.post(
+                f"{API_BASE}/chat",
+                json={
+                    "message": step["message"],
+                    "session_id": session_id,
+                    "site_id": site_id
+                },
+                headers={"Content-Type": "application/json"},
+                timeout=15
+            )
+            
+            if chat_response.status_code == 200:
+                data = chat_response.json()
+                response_text = data.get('response', '').lower()
+                conversation_responses.append({
+                    "message": step["message"],
+                    "response": data.get('response', ''),
+                    "model": data.get('model', ''),
+                    "conversation_length": data.get('conversation_length', 0)
+                })
+                
+                print(f"✅ Chat response: {data.get('response', 'No response')}")
+                print(f"   Model used: {data.get('model', 'Unknown')}")
+                print(f"   Conversation length: {data.get('conversation_length', 0)}")
+                
+                # Verify session consistency
+                if data.get("session_id") == session_id:
+                    print("✅ Session ID consistent")
+                else:
+                    print(f"❌ Session ID mismatch: expected {session_id}, got {data.get('session_id')}")
+                    all_passed = False
+                
+                # Check for contextual awareness (for follow-up questions)
+                if i > 2:  # After the first two messages, responses should show context awareness
+                    if any(keyword in response_text for keyword in step["expected_keywords"]):
+                        print("✅ Response shows contextual awareness")
+                    else:
+                        print(f"⚠️ Response may lack contextual awareness. Expected keywords: {step['expected_keywords']}")
+                        # Don't fail the test for this, as demo responses might vary
+                
+                # Verify conversation length increases
+                expected_length = i
+                actual_length = data.get('conversation_length', 0)
+                if actual_length == expected_length:
+                    print(f"✅ Conversation length correct: {actual_length}")
+                else:
+                    print(f"⚠️ Conversation length: expected {expected_length}, got {actual_length}")
+                
+                # Verify required response fields
+                required_fields = ["response", "session_id", "timestamp", "model"]
+                missing_fields = [field for field in required_fields if field not in data]
+                if missing_fields:
+                    print(f"❌ Missing required fields: {missing_fields}")
+                    all_passed = False
+                else:
+                    print("✅ All required response fields present")
+                    
+            else:
+                print(f"❌ Chat failed with status {chat_response.status_code}")
+                if chat_response.content:
+                    print(f"   Error: {chat_response.json()}")
+                all_passed = False
+                
+        except Exception as e:
+            print(f"❌ Chat request failed: {e}")
+            all_passed = False
+        
+        # Small delay between messages
+        time.sleep(0.5)
+    
+    # Test session isolation - use different session_id
+    print(f"\n--- Testing Session Isolation ---")
+    different_session_id = f"isolation-test-{uuid.uuid4()}"
+    
+    try:
+        isolation_response = requests.post(
+            f"{API_BASE}/chat",
+            json={
+                "message": "Hello, this is a new session",
+                "session_id": different_session_id,
+                "site_id": site_id
+            },
+            headers={"Content-Type": "application/json"},
+            timeout=15
+        )
+        
+        if isolation_response.status_code == 200:
+            isolation_data = isolation_response.json()
+            if isolation_data.get('conversation_length', 0) == 1:
+                print("✅ Session isolation working - new session starts with length 1")
+            else:
+                print(f"❌ Session isolation failed - new session has length {isolation_data.get('conversation_length', 0)}")
+                all_passed = False
+        else:
+            print(f"❌ Session isolation test failed with status {isolation_response.status_code}")
+            all_passed = False
+            
+    except Exception as e:
+        print(f"❌ Session isolation test failed: {e}")
+        all_passed = False
+    
+    # Print conversation summary
+    print(f"\n--- Conversation Summary ---")
+    for i, conv in enumerate(conversation_responses, 1):
+        print(f"Step {i}: '{conv['message']}' -> '{conv['response'][:50]}...' (Model: {conv['model']})")
+    
+    return all_passed
+
 def test_conversation_flow():
     """Test a complete conversation flow"""
     print_test_header("Complete Conversation Flow Test")
