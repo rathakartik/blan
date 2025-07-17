@@ -434,7 +434,7 @@ def test_user_registration():
         {
             "name": "Valid Registration",
             "payload": {
-                "email": "test@example.com",
+                "email": f"testuser{int(time.time())}@example.com",
                 "full_name": "Test User",
                 "password": "securepassword123"
             },
