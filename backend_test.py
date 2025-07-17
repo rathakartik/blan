@@ -890,24 +890,82 @@ def main():
     
     test_results = {}
     
-    # Run individual endpoint tests
+    # Run Phase 1 tests (existing widget functionality)
+    print("\n" + "="*60)
+    print("PHASE 1: WIDGET API TESTS")
+    print("="*60)
+    
     test_results["health"] = test_health_endpoint()
     test_results["chat"] = test_chat_endpoint()
     test_results["widget_config"] = test_widget_config_endpoint()
     test_results["analytics"] = test_analytics_endpoint()
     test_results["conversation_flow"] = test_conversation_flow()
     
+    # Run Phase 2 tests (dashboard functionality)
+    print("\n" + "="*60)
+    print("PHASE 2: DASHBOARD API TESTS")
+    print("="*60)
+    
+    test_results["user_registration"] = test_user_registration()
+    login_success, access_token = test_user_login()
+    test_results["user_login"] = login_success
+    
+    if access_token:
+        site_creation_success, site_id = test_site_creation(access_token)
+        test_results["site_creation"] = site_creation_success
+        test_results["site_listing"] = test_site_listing(access_token)
+        test_results["dashboard_analytics"] = test_dashboard_analytics(access_token)
+    else:
+        print("⚠️ Skipping authenticated tests due to login failure")
+        test_results["site_creation"] = False
+        test_results["site_listing"] = False
+        test_results["dashboard_analytics"] = False
+    
+    # Run complete flow test
+    print("\n" + "="*60)
+    print("COMPLETE FLOW TEST")
+    print("="*60)
+    
+    test_results["complete_dashboard_flow"] = test_complete_dashboard_flow()
+    
     # Print summary
     print(f"\n{'='*60}")
     print("TEST SUMMARY")
     print(f"{'='*60}")
     
+    # Phase 1 results
+    print("\nPhase 1 (Widget API):")
+    phase1_tests = ["health", "chat", "widget_config", "analytics", "conversation_flow"]
+    phase1_passed = sum(1 for test in phase1_tests if test_results.get(test, False))
+    
+    for test_name in phase1_tests:
+        result = test_results.get(test_name, False)
+        status = "✅ PASSED" if result else "❌ FAILED"
+        print(f"  {test_name.upper().replace('_', ' ')}: {status}")
+    
+    print(f"  Phase 1 Result: {phase1_passed}/{len(phase1_tests)} tests passed")
+    
+    # Phase 2 results
+    print("\nPhase 2 (Dashboard API):")
+    phase2_tests = ["user_registration", "user_login", "site_creation", "site_listing", "dashboard_analytics"]
+    phase2_passed = sum(1 for test in phase2_tests if test_results.get(test, False))
+    
+    for test_name in phase2_tests:
+        result = test_results.get(test_name, False)
+        status = "✅ PASSED" if result else "❌ FAILED"
+        print(f"  {test_name.upper().replace('_', ' ')}: {status}")
+    
+    print(f"  Phase 2 Result: {phase2_passed}/{len(phase2_tests)} tests passed")
+    
+    # Complete flow result
+    print("\nComplete Flow:")
+    flow_result = test_results.get("complete_dashboard_flow", False)
+    flow_status = "✅ PASSED" if flow_result else "❌ FAILED"
+    print(f"  COMPLETE DASHBOARD FLOW: {flow_status}")
+    
+    # Overall results
     total_tests = len(test_results)
     passed_tests = sum(1 for result in test_results.values() if result)
-    
-    for test_name, result in test_results.items():
-        status = "✅ PASSED" if result else "❌ FAILED"
-        print(f"{test_name.upper().replace('_', ' ')}: {status}")
     
     print(f"\nOverall Result: {passed_tests}/{total_tests} tests passed")
     
