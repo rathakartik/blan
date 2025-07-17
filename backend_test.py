@@ -443,7 +443,7 @@ def test_user_registration():
         {
             "name": "Duplicate Email Registration",
             "payload": {
-                "email": "test@example.com",
+                "email": "test@example.com",  # Use existing email for duplicate test
                 "full_name": "Another User",
                 "password": "anotherpassword123"
             },
