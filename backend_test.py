@@ -525,7 +525,7 @@ def test_user_login():
             "name": "Valid Login",
             "payload": {
                 "email": "test@example.com",
-                "password": "testpassword123"  # Try the password that was likely used before
+                "password": "password123"
             },
             "expected_status": 200
         },
