@@ -686,7 +686,7 @@ async def get_widget_config(request: Request):
         if not site_id:
             raise HTTPException(status_code=400, detail="Site ID is required")
         
-        # Default configuration (later this will come from database)
+        # Default configuration (works for demo and fallback)
         default_config = {
             "site_id": site_id,
             "greeting_message": "Hi there! I'm your virtual assistant. How can I help you today?",
@@ -704,18 +704,19 @@ async def get_widget_config(request: Request):
         }
         
         # If database is available, try to get custom config
-        if db is not None:
+        if db_service:
             try:
-                custom_config = db.widget_configs.find_one({"site_id": site_id})
-                if custom_config:
-                    # Remove MongoDB _id field
-                    custom_config.pop('_id', None)
-                    default_config.update(custom_config)
+                config = await db_service.get_site_config(site_id)
+                if config:
+                    return config
             except Exception as e:
-                logger.error(f"Failed to get widget config: {e}")
+                logger.error(f"Failed to get widget config from database: {e}")
         
+        # For demo sites or when database lookup fails, return default config
         return default_config
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Widget config endpoint error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
