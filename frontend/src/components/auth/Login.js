@@ -20,8 +20,10 @@ const Login = () => {
 
   useEffect(() => {
     // Clear errors when component mounts
-    clearError();
-  }, [clearError]);
+    if (error) {
+      clearError();
+    }
+  }, []); // Empty dependency array to run only once
 
   const handleSubmit = async (e) => {
     e.preventDefault();
