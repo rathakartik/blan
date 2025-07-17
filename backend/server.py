@@ -24,11 +24,38 @@ from database import DatabaseService
 load_dotenv()
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('/var/log/supervisor/backend.log'),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
+# Rate limiting storage
+rate_limits = defaultdict(lambda: defaultdict(list))
+
+# Security configurations
+MAX_MESSAGE_LENGTH = 1000
+MAX_REQUESTS_PER_MINUTE = 60
+MAX_CHAT_REQUESTS_PER_MINUTE = 20
+BLOCKED_PATTERNS = [
+    r'<script[^>]*>.*?</script>',
+    r'javascript:',
+    r'on\w+\s*=',
+    r'eval\s*\(',
+    r'document\.',
+    r'window\.',
+]
+
 # Initialize FastAPI app
-app = FastAPI(title="AI Voice Assistant API", version="1.0.0")
+app = FastAPI(
+    title="AI Voice Assistant API", 
+    version="1.0.0",
+    description="Production-ready AI Voice Assistant API with enhanced security"
+)
 
 # CORS middleware
 app.add_middleware(
