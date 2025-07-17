@@ -214,13 +214,11 @@ metadata:
 
 test_plan:
   current_focus:
-    - "User Registration API - POST /api/auth/register"
-    - "User Login API - POST /api/auth/login"
-    - "Site Creation API - POST /api/sites"
-    - "Site Listing API - GET /api/sites"
-    - "Dashboard Analytics API - GET /api/analytics/dashboard"
+    - "Core AI Chat Endpoint - POST /api/chat"
+    - "Widget Configuration API - POST /api/widget/config"
+    - "Analytics Interaction Logging - POST /api/analytics/interaction"
   stuck_tasks: []
-  test_all: true
+  test_all: false
   test_priority: "high_first"
 
 frontend:
