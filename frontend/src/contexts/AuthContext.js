@@ -119,13 +119,16 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
+      console.log('AuthContext: Starting login process');
       dispatch({ type: 'LOGIN_START' });
       
+      console.log('AuthContext: Making API call to', `${API_URL}/api/auth/login`);
       const response = await axios.post(`${API_URL}/api/auth/login`, {
         email,
         password
       });
 
+      console.log('AuthContext: Login API response:', response.data);
       const { access_token } = response.data;
       
       // Store token
@@ -133,7 +136,9 @@ export const AuthProvider = ({ children }) => {
       axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       
       // Get user info
+      console.log('AuthContext: Getting user info');
       const userResponse = await axios.get(`${API_URL}/api/auth/me`);
+      console.log('AuthContext: User info response:', userResponse.data);
       
       dispatch({
         type: 'LOGIN_SUCCESS',
@@ -143,8 +148,11 @@ export const AuthProvider = ({ children }) => {
         }
       });
 
+      console.log('AuthContext: Login successful');
       return { success: true };
     } catch (error) {
+      console.error('AuthContext: Login error:', error);
+      console.error('AuthContext: Error response:', error.response?.data);
       const errorMessage = error.response?.data?.detail || 'Login failed';
       dispatch({
         type: 'LOGIN_FAILURE',
