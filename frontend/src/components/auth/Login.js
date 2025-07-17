@@ -34,9 +34,16 @@ const Login = () => {
       return;
     }
 
+    console.log('Attempting login with:', { email, password: 'hidden' });
     const result = await login(email, password);
+    console.log('Login result:', result);
+    
     if (result.success) {
+      console.log('Login successful, navigating to dashboard');
       navigate('/dashboard');
+    } else {
+      console.log('Login failed:', result.error);
+      setLocalError(result.error || 'Login failed');
     }
   };
 
