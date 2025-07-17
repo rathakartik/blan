@@ -683,6 +683,135 @@ async def log_interaction(request: Request):
         logger.error(f"Analytics endpoint error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ============================================================================
+# ENHANCED AI CONVERSATION FUNCTIONS
+# ============================================================================
+
+async def get_conversation_history(session_id: str, site_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+    """Get conversation history for a session"""
+    try:
+        if not db:
+            return []
+        
+        conversations = list(db.conversations.find({
+            "session_id": session_id,
+            "site_id": site_id
+        }).sort("timestamp", 1).limit(limit))
+        
+        return [
+            {
+                "user_message": conv.get("user_message", ""),
+                "ai_response": conv.get("ai_response", ""),
+                "timestamp": conv.get("timestamp")
+            }
+            for conv in conversations
+        ]
+    except Exception as e:
+        logger.error(f"Error getting conversation history: {e}")
+        return []
+
+async def get_site_configuration(site_id: str) -> Dict[str, Any]:
+    """Get site configuration for AI customization"""
+    try:
+        if not db_service:
+            return get_default_site_config()
+        
+        config = await db_service.get_site_config(site_id)
+        if config:
+            return config
+        return get_default_site_config()
+    except Exception as e:
+        logger.error(f"Error getting site configuration: {e}")
+        return get_default_site_config()
+
+def get_default_site_config() -> Dict[str, Any]:
+    """Get default site configuration"""
+    return {
+        "site_id": "demo-site",
+        "greeting_message": "Hi there! I'm your virtual assistant. How can I help you today?",
+        "bot_name": "AI Assistant",
+        "language": "en-US",
+        "voice_enabled": True,
+        "groq_api_key": None
+    }
+
+def create_system_prompt(site_config: Dict[str, Any]) -> str:
+    """Create customized system prompt based on site configuration"""
+    bot_name = site_config.get("bot_name", "AI Assistant")
+    language = site_config.get("language", "en-US")
+    
+    base_prompt = f"""You are {bot_name}, a helpful AI assistant embedded on a website. You should be:
+- Friendly, concise, and helpful
+- Professional but conversational
+- Suitable for voice interaction (keep responses brief and clear)
+- Contextually aware of the conversation history
+- Focused on helping visitors with their questions
+
+Language: {language}
+
+Guidelines:
+1. Keep responses under 150 words for voice compatibility
+2. Remember previous context in the conversation
+3. Be helpful and provide actionable information
+4. If you don't know something, admit it and offer to help in other ways
+5. Stay on topic and relevant to the website's purpose"""
+    
+    return base_prompt
+
+def generate_contextual_demo_response(message: str, conversation_history: List[Dict[str, Any]]) -> str:
+    """Generate demo responses with conversation context"""
+    message_lower = message.lower()
+    
+    # Check if this is a follow-up based on history
+    if conversation_history:
+        last_response = conversation_history[-1].get("ai_response", "").lower()
+        
+        # Handle follow-up questions
+        if any(word in message_lower for word in ['more', 'tell me more', 'continue', 'elaborate']):
+            if 'weather' in last_response:
+                return "For detailed weather information, I'd recommend checking weather.com or your local weather app. They provide hourly forecasts, radar maps, and severe weather alerts."
+            elif 'help' in last_response:
+                return "I can assist with general questions, provide information, and help guide you through various topics. What specific area would you like help with?"
+            else:
+                return "I'd be happy to provide more details! Could you be more specific about what aspect you'd like to know more about?"
+        
+        # Handle clarification requests
+        if any(word in message_lower for word in ['what do you mean', 'explain', 'clarify']):
+            return "Let me clarify that for you. Could you tell me which part you'd like me to explain in more detail?"
+    
+    # Standard responses with context awareness
+    if any(greeting in message_lower for greeting in ['hello', 'hi', 'hey', 'good morning', 'good afternoon']):
+        if conversation_history:
+            return "Hello again! How else can I assist you today?"
+        else:
+            return "Hello! I'm your AI voice assistant. How can I help you today?"
+    
+    elif any(question in message_lower for question in ['how are you', 'how do you do']):
+        return "I'm doing great, thank you for asking! I'm here to help answer your questions and assist with anything you need."
+    
+    elif any(word in message_lower for word in ['help', 'what can you do', 'capabilities']):
+        return "I can help you with questions, provide information, and have conversations. I remember our chat history, so feel free to ask follow-up questions. What would you like to know?"
+    
+    elif any(word in message_lower for word in ['weather', 'temperature']):
+        return "I don't have access to current weather data, but I can help you find weather information or answer other questions!"
+    
+    elif any(word in message_lower for word in ['time', 'date']):
+        return "I don't have access to real-time data, but I can help you with other questions. Is there anything else I can assist you with?"
+    
+    elif any(word in message_lower for word in ['thank', 'thanks']):
+        return "You're welcome! I'm glad I could help. Is there anything else you'd like to know?"
+    
+    elif any(word in message_lower for word in ['bye', 'goodbye', 'see you']):
+        return "Goodbye! Feel free to come back anytime if you have more questions. Have a great day!"
+    
+    else:
+        # Context-aware response
+        context_info = ""
+        if conversation_history:
+            context_info = " I remember our previous conversation, so feel free to ask follow-up questions."
+        
+        return f"That's an interesting question about '{message}'. I'm currently in demo mode, but I'd be happy to help you explore this topic further.{context_info} What specific aspect would you like to know more about?"
+
 def generate_demo_response(message: str) -> str:
     """Generate demo responses for testing purposes"""
     message_lower = message.lower()
