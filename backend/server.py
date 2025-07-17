@@ -188,6 +188,9 @@ async def chat_with_ai(request: Request):
             "model": model_used
         }
         
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 400 for missing message)
+        raise
     except Exception as e:
         logger.error(f"Chat endpoint error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
