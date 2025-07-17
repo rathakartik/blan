@@ -66,6 +66,105 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ============================================================================
+# SECURITY & RATE LIMITING MIDDLEWARE
+# ============================================================================
+
+def get_client_ip(request: Request) -> str:
+    """Get client IP address from request"""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host
+
+def is_rate_limited(client_ip: str, endpoint: str, max_requests: int = MAX_REQUESTS_PER_MINUTE) -> bool:
+    """Check if client IP is rate limited for specific endpoint"""
+    current_time = time.time()
+    minute_ago = current_time - 60
+    
+    # Clean old entries
+    rate_limits[client_ip][endpoint] = [
+        req_time for req_time in rate_limits[client_ip][endpoint] 
+        if req_time > minute_ago
+    ]
+    
+    # Check if rate limit exceeded
+    if len(rate_limits[client_ip][endpoint]) >= max_requests:
+        return True
+    
+    # Add current request
+    rate_limits[client_ip][endpoint].append(current_time)
+    return False
+
+def sanitize_input(text: str) -> str:
+    """Sanitize user input to prevent XSS and injection attacks"""
+    if not text:
+        return ""
+    
+    # Remove potentially dangerous patterns
+    for pattern in BLOCKED_PATTERNS:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+    
+    # Limit length
+    if len(text) > MAX_MESSAGE_LENGTH:
+        text = text[:MAX_MESSAGE_LENGTH]
+    
+    # Remove excessive whitespace
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    return text
+
+def validate_message_content(message: str) -> bool:
+    """Validate message content for safety"""
+    if not message or len(message.strip()) == 0:
+        return False
+    
+    if len(message) > MAX_MESSAGE_LENGTH:
+        return False
+    
+    # Check for spam patterns
+    spam_patterns = [
+        r'(.)\1{10,}',  # Repeated characters
+        r'[A-Z\s]{50,}',  # Excessive caps
+        r'(https?://\S+\s*){5,}',  # Multiple URLs
+    ]
+    
+    for pattern in spam_patterns:
+        if re.search(pattern, message):
+            return False
+    
+    return True
+
+async def security_middleware(request: Request, call_next):
+    """Security middleware for request validation"""
+    start_time = time.time()
+    
+    # Get client IP
+    client_ip = get_client_ip(request)
+    
+    # Check rate limiting for API endpoints
+    if request.url.path.startswith("/api/"):
+        endpoint = request.url.path
+        max_requests = MAX_CHAT_REQUESTS_PER_MINUTE if "/chat" in endpoint else MAX_REQUESTS_PER_MINUTE
+        
+        if is_rate_limited(client_ip, endpoint, max_requests):
+            logger.warning(f"Rate limit exceeded for {client_ip} on {endpoint}")
+            return HTTPException(
+                status_code=429,
+                detail="Rate limit exceeded. Please try again later."
+            )
+    
+    response = await call_next(request)
+    
+    # Log request
+    process_time = time.time() - start_time
+    logger.info(f"{client_ip} - {request.method} {request.url.path} - {response.status_code} - {process_time:.3f}s")
+    
+    return response
+
+# Add security middleware
+app.middleware("http")(security_middleware)
+
 # Initialize MongoDB connection
 try:
     mongo_client = MongoClient(os.getenv("MONGO_URL"))
