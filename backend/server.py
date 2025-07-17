@@ -721,33 +721,6 @@ async def get_widget_config(request: Request):
         logger.error(f"Widget config endpoint error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/analytics/interaction")
-async def log_interaction(request: Request):
-    """Log widget interaction for analytics"""
-    try:
-        body = await request.json()
-        interaction_data = {
-            "site_id": body.get("site_id"),
-            "session_id": body.get("session_id"),
-            "interaction_type": body.get("type"),  # greeting, voice_input, text_input, etc.
-            "timestamp": datetime.utcnow(),
-            "user_agent": request.headers.get("user-agent"),
-            "ip_address": request.client.host
-        }
-        
-        if db is not None:
-            try:
-                db.interactions.insert_one(interaction_data)
-                logger.info(f"Interaction logged: {interaction_data['interaction_type']}")
-            except Exception as e:
-                logger.error(f"Failed to log interaction: {e}")
-        
-        return {"status": "logged"}
-        
-    except Exception as e:
-        logger.error(f"Analytics endpoint error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
