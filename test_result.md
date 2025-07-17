@@ -163,10 +163,11 @@ metadata:
 
 test_plan:
   current_focus:
-    - "AI Voice Assistant Widget - Page Load and Initial State"
-    - "AI Voice Assistant Widget - Widget Opening and Closing"
-    - "AI Voice Assistant Widget - Auto-Greeting Functionality"
-    - "AI Voice Assistant Widget - Chat Interface Functionality"
+    - "User Registration API - POST /api/auth/register"
+    - "User Login API - POST /api/auth/login"
+    - "Site Creation API - POST /api/sites"
+    - "Site Listing API - GET /api/sites"
+    - "Dashboard Analytics API - GET /api/analytics/dashboard"
   stuck_tasks: []
   test_all: true
   test_priority: "high_first"
