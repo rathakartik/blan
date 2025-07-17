@@ -622,7 +622,7 @@ def test_site_creation(access_token):
             "name": "Valid Site Creation",
             "payload": {
                 "name": "Test Website",
-                "domain": "test-website.com",
+                "domain": f"test-website-{int(time.time())}.com",
                 "description": "A test website for AI voice assistant",
                 "greeting_message": "Welcome to our test website! How can I help you?",
                 "bot_name": "TestBot",
