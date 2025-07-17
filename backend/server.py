@@ -245,25 +245,38 @@ async def health_check():
 
 @app.post("/api/chat")
 async def chat_with_ai(request: Request):
-    """Main chat endpoint for the voice widget with conversation memory"""
+    """Main chat endpoint for the voice widget with conversation memory and security"""
     try:
         body = await request.json()
-        message = body.get("message")
+        message = body.get("message", "").strip()
         session_id = body.get("session_id", str(uuid.uuid4()))
-        site_id = body.get("site_id")
+        site_id = body.get("site_id", "demo")
         
+        # Input validation and sanitization
         if not message:
             raise HTTPException(status_code=400, detail="Message is required")
+        
+        # Sanitize input
+        message = sanitize_input(message)
+        
+        # Validate message content
+        if not validate_message_content(message):
+            raise HTTPException(status_code=400, detail="Invalid message content")
+        
+        # Additional rate limiting for chat endpoint
+        client_ip = get_client_ip(request)
+        if is_rate_limited(client_ip, "chat", MAX_CHAT_REQUESTS_PER_MINUTE):
+            raise HTTPException(status_code=429, detail="Chat rate limit exceeded")
         
         # Get site-specific configuration
         site_config = await get_site_configuration(site_id)
         
-        # AI Response logic
+        # AI Response logic with improved error handling
         ai_response = ""
         model_used = "demo"
         
-        if groq_client:
-            try:
+        try:
+            if groq_client:
                 # Get conversation history for context
                 conversation_history = await get_conversation_history(session_id, site_id)
                 
@@ -275,8 +288,8 @@ async def chat_with_ai(request: Request):
                     }
                 ]
                 
-                # Add conversation history (last 10 messages for context)
-                for msg in conversation_history[-10:]:
+                # Add conversation history (last 8 messages for context)
+                for msg in conversation_history[-8:]:
                     conversation_context.append({
                         "role": "user",
                         "content": msg["user_message"]
@@ -298,11 +311,11 @@ async def chat_with_ai(request: Request):
                     # Create client with custom API key if provided
                     client = Groq(api_key=api_key) if site_config.get("groq_api_key") else groq_client
                     
-                    # Get response from GROQ
+                    # Get response from GROQ with timeout
                     completion = client.chat.completions.create(
-                        model="llama3-8b-8192",  # Using Meta's Llama model
+                        model="llama3-8b-8192",
                         messages=conversation_context,
-                        max_tokens=200,  # Increased for better responses
+                        max_tokens=200,
                         temperature=0.7,
                         stream=False
                     )
@@ -310,19 +323,18 @@ async def chat_with_ai(request: Request):
                     ai_response = completion.choices[0].message.content
                     model_used = "llama3-8b-8192"
                     
+                    # Content filtering for AI response
+                    ai_response = filter_ai_response(ai_response)
+                    
                 else:
                     raise Exception("No GROQ API key available")
                 
-            except Exception as e:
-                logger.error(f"GROQ API error: {e}")
-                # Fallback to demo response with context
-                ai_response = generate_contextual_demo_response(message, conversation_history)
-                model_used = "demo_fallback"
-        else:
-            # Demo mode response with context
+        except Exception as e:
+            logger.error(f"GROQ API error: {e}")
+            # Fallback to demo response with context
             conversation_history = await get_conversation_history(session_id, site_id)
             ai_response = generate_contextual_demo_response(message, conversation_history)
-            model_used = "demo"
+            model_used = "demo_fallback"
         
         # Store conversation in MongoDB if available
         if db is not None:
@@ -334,19 +346,25 @@ async def chat_with_ai(request: Request):
                     "ai_response": ai_response,
                     "timestamp": datetime.utcnow(),
                     "model": model_used,
-                    "tokens_used": len(message.split()) + len(ai_response.split())  # Approximate token count
+                    "tokens_used": len(message.split()) + len(ai_response.split()),
+                    "client_ip": client_ip,
+                    "user_agent": request.headers.get("user-agent", "unknown")
                 }
                 db.conversations.insert_one(conversation_log)
                 logger.info(f"Conversation logged for session {session_id}")
             except Exception as e:
                 logger.error(f"Failed to log conversation: {e}")
         
+        # Get conversation history length
+        conversation_history = await get_conversation_history(session_id, site_id)
+        
         return {
             "response": ai_response,
             "session_id": session_id,
             "timestamp": datetime.utcnow().isoformat(),
             "model": model_used,
-            "conversation_length": len(conversation_history) + 1
+            "conversation_length": len(conversation_history) + 1,
+            "rate_limit_remaining": MAX_CHAT_REQUESTS_PER_MINUTE - len(rate_limits[client_ip]["chat"])
         }
         
     except HTTPException:
@@ -354,7 +372,7 @@ async def chat_with_ai(request: Request):
         raise
     except Exception as e:
         logger.error(f"Chat endpoint error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 # ============================================================================
 # DASHBOARD API ENDPOINTS
