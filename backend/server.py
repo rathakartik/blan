@@ -619,48 +619,6 @@ async def widget_page(site_id: str):
         logger.error(f"Widget page error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Updated widget config endpoint to work with new database
-@app.post("/api/widget/config")
-async def get_widget_config(request: Request):
-    """Get widget configuration for a specific site."""
-    try:
-        body = await request.json()
-        site_id = body.get("site_id")
-        
-        if not site_id:
-            raise HTTPException(status_code=400, detail="Site ID is required")
-        
-        if not db_service:
-            # Fallback to default config if database not available
-            default_config = {
-                "site_id": site_id,
-                "greeting_message": "Hi there! I'm your virtual assistant. How can I help you today?",
-                "bot_name": "AI Assistant",
-                "theme": {
-                    "primary_color": "#3B82F6",
-                    "secondary_color": "#1E40AF",
-                    "text_color": "#1F2937",
-                    "background_color": "#FFFFFF"
-                },
-                "position": "bottom-right",
-                "auto_greet": True,
-                "voice_enabled": True,
-                "language": "en-US"
-            }
-            return default_config
-        
-        config = await db_service.get_site_config(site_id)
-        if not config:
-            raise HTTPException(status_code=404, detail="Site not found")
-        
-        return config
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Widget config endpoint error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 # Updated analytics endpoint to work with new database
 @app.post("/api/analytics/interaction")
 async def log_interaction(request: Request):
