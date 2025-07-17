@@ -27,9 +27,11 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('Login form submitted');
     setLocalError('');
 
     if (!email || !password) {
+      console.log('Validation failed: missing email or password');
       setLocalError('Please fill in all fields');
       return;
     }
