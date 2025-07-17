@@ -422,6 +422,466 @@ def test_conversation_flow():
     
     return all_passed
 
+# ============================================================================
+# PHASE 2 DASHBOARD API TESTS
+# ============================================================================
+
+def test_user_registration():
+    """Test user registration endpoint"""
+    print_test_header("User Registration - POST /api/auth/register")
+    
+    test_cases = [
+        {
+            "name": "Valid Registration",
+            "payload": {
+                "email": "test@example.com",
+                "full_name": "Test User",
+                "password": "securepassword123"
+            },
+            "expected_status": 200
+        },
+        {
+            "name": "Duplicate Email Registration",
+            "payload": {
+                "email": "test@example.com",
+                "full_name": "Another User",
+                "password": "anotherpassword123"
+            },
+            "expected_status": 400
+        },
+        {
+            "name": "Invalid Email Format",
+            "payload": {
+                "email": "invalid-email",
+                "full_name": "Test User",
+                "password": "securepassword123"
+            },
+            "expected_status": 422
+        },
+        {
+            "name": "Missing Password",
+            "payload": {
+                "email": "test2@example.com",
+                "full_name": "Test User"
+            },
+            "expected_status": 422
+        }
+    ]
+    
+    all_passed = True
+    
+    for test_case in test_cases:
+        print(f"\n--- Testing: {test_case['name']} ---")
+        
+        try:
+            response = requests.post(
+                f"{API_BASE}/auth/register",
+                json=test_case["payload"],
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            
+            print_result("/api/auth/register", response.status_code, response.json() if response.content else {}, test_case["expected_status"])
+            
+            if response.status_code == test_case["expected_status"]:
+                if response.status_code == 200:
+                    data = response.json()
+                    required_fields = ["id", "email", "full_name", "created_at", "updated_at", "is_active"]
+                    missing_fields = [field for field in required_fields if field not in data]
+                    
+                    if missing_fields:
+                        print(f"❌ Missing required fields: {missing_fields}")
+                        all_passed = False
+                    else:
+                        print("✅ All required fields present")
+                        
+                    # Verify email matches
+                    if data.get("email") == test_case["payload"]["email"]:
+                        print("✅ Email matches registration data")
+                    else:
+                        print("❌ Email doesn't match registration data")
+                        all_passed = False
+                else:
+                    print("✅ Error handled correctly")
+            else:
+                print(f"❌ Expected status {test_case['expected_status']}, got {response.status_code}")
+                all_passed = False
+                
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Request failed: {e}")
+            all_passed = False
+        except json.JSONDecodeError as e:
+            print(f"❌ Invalid JSON response: {e}")
+            all_passed = False
+    
+    return all_passed
+
+def test_user_login():
+    """Test user login endpoint"""
+    print_test_header("User Login - POST /api/auth/login")
+    
+    test_cases = [
+        {
+            "name": "Valid Login",
+            "payload": {
+                "email": "test@example.com",
+                "password": "securepassword123"
+            },
+            "expected_status": 200
+        },
+        {
+            "name": "Invalid Password",
+            "payload": {
+                "email": "test@example.com",
+                "password": "wrongpassword"
+            },
+            "expected_status": 401
+        },
+        {
+            "name": "Non-existent User",
+            "payload": {
+                "email": "nonexistent@example.com",
+                "password": "somepassword"
+            },
+            "expected_status": 401
+        },
+        {
+            "name": "Missing Email",
+            "payload": {
+                "password": "securepassword123"
+            },
+            "expected_status": 422
+        }
+    ]
+    
+    all_passed = True
+    access_token = None
+    
+    for test_case in test_cases:
+        print(f"\n--- Testing: {test_case['name']} ---")
+        
+        try:
+            response = requests.post(
+                f"{API_BASE}/auth/login",
+                json=test_case["payload"],
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            
+            print_result("/api/auth/login", response.status_code, response.json() if response.content else {}, test_case["expected_status"])
+            
+            if response.status_code == test_case["expected_status"]:
+                if response.status_code == 200:
+                    data = response.json()
+                    required_fields = ["access_token", "token_type"]
+                    missing_fields = [field for field in required_fields if field not in data]
+                    
+                    if missing_fields:
+                        print(f"❌ Missing required fields: {missing_fields}")
+                        all_passed = False
+                    else:
+                        print("✅ All required fields present")
+                        access_token = data.get("access_token")
+                        
+                    # Verify token type
+                    if data.get("token_type") == "bearer":
+                        print("✅ Token type is bearer")
+                    else:
+                        print("❌ Token type is not bearer")
+                        all_passed = False
+                else:
+                    print("✅ Error handled correctly")
+            else:
+                print(f"❌ Expected status {test_case['expected_status']}, got {response.status_code}")
+                all_passed = False
+                
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Request failed: {e}")
+            all_passed = False
+        except json.JSONDecodeError as e:
+            print(f"❌ Invalid JSON response: {e}")
+            all_passed = False
+    
+    return all_passed, access_token
+
+def test_site_creation(access_token):
+    """Test site creation endpoint"""
+    print_test_header("Site Creation - POST /api/sites")
+    
+    if not access_token:
+        print("❌ No access token available for testing")
+        return False, None
+    
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {access_token}"
+    }
+    
+    test_cases = [
+        {
+            "name": "Valid Site Creation",
+            "payload": {
+                "name": "Test Website",
+                "domain": "test-website.com",
+                "description": "A test website for AI voice assistant",
+                "greeting_message": "Welcome to our test website! How can I help you?",
+                "bot_name": "TestBot",
+                "theme": {
+                    "primary_color": "#3B82F6",
+                    "secondary_color": "#1E40AF",
+                    "text_color": "#1F2937",
+                    "background_color": "#FFFFFF"
+                },
+                "position": "bottom-right",
+                "auto_greet": True,
+                "voice_enabled": True,
+                "language": "en-US"
+            },
+            "expected_status": 200
+        },
+        {
+            "name": "Duplicate Domain",
+            "payload": {
+                "name": "Another Test Website",
+                "domain": "test-website.com",
+                "description": "Another test website"
+            },
+            "expected_status": 400
+        },
+        {
+            "name": "Invalid Domain Format",
+            "payload": {
+                "name": "Invalid Domain Site",
+                "domain": "invalid..domain",
+                "description": "Site with invalid domain"
+            },
+            "expected_status": 400
+        },
+        {
+            "name": "Missing Required Fields",
+            "payload": {
+                "description": "Site without name and domain"
+            },
+            "expected_status": 422
+        }
+    ]
+    
+    all_passed = True
+    site_id = None
+    
+    for test_case in test_cases:
+        print(f"\n--- Testing: {test_case['name']} ---")
+        
+        try:
+            response = requests.post(
+                f"{API_BASE}/sites",
+                json=test_case["payload"],
+                headers=headers,
+                timeout=10
+            )
+            
+            print_result("/api/sites", response.status_code, response.json() if response.content else {}, test_case["expected_status"])
+            
+            if response.status_code == test_case["expected_status"]:
+                if response.status_code == 200:
+                    data = response.json()
+                    required_fields = ["id", "user_id", "name", "domain", "created_at", "updated_at"]
+                    missing_fields = [field for field in required_fields if field not in data]
+                    
+                    if missing_fields:
+                        print(f"❌ Missing required fields: {missing_fields}")
+                        all_passed = False
+                    else:
+                        print("✅ All required fields present")
+                        site_id = data.get("id")
+                        
+                    # Verify domain matches
+                    if data.get("domain") == test_case["payload"]["domain"]:
+                        print("✅ Domain matches creation data")
+                    else:
+                        print("❌ Domain doesn't match creation data")
+                        all_passed = False
+                else:
+                    print("✅ Error handled correctly")
+            else:
+                print(f"❌ Expected status {test_case['expected_status']}, got {response.status_code}")
+                all_passed = False
+                
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Request failed: {e}")
+            all_passed = False
+        except json.JSONDecodeError as e:
+            print(f"❌ Invalid JSON response: {e}")
+            all_passed = False
+    
+    return all_passed, site_id
+
+def test_site_listing(access_token):
+    """Test site listing endpoint"""
+    print_test_header("Site Listing - GET /api/sites")
+    
+    if not access_token:
+        print("❌ No access token available for testing")
+        return False
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+    
+    try:
+        response = requests.get(
+            f"{API_BASE}/sites",
+            headers=headers,
+            timeout=10
+        )
+        
+        print_result("/api/sites", response.status_code, response.json() if response.content else {})
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if isinstance(data, list):
+                print("✅ Response is a list")
+                
+                if len(data) > 0:
+                    print(f"✅ Found {len(data)} site(s)")
+                    
+                    # Check first site structure
+                    first_site = data[0]
+                    required_fields = ["id", "user_id", "name", "domain", "created_at", "updated_at"]
+                    missing_fields = [field for field in required_fields if field not in first_site]
+                    
+                    if missing_fields:
+                        print(f"❌ Missing required fields in site: {missing_fields}")
+                        return False
+                    else:
+                        print("✅ Site structure is correct")
+                else:
+                    print("ℹ️ No sites found (this might be expected)")
+                
+                return True
+            else:
+                print("❌ Response is not a list")
+                return False
+        else:
+            print(f"❌ Expected status 200, got {response.status_code}")
+            return False
+            
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Request failed: {e}")
+        return False
+    except json.JSONDecodeError as e:
+        print(f"❌ Invalid JSON response: {e}")
+        return False
+
+def test_dashboard_analytics(access_token):
+    """Test dashboard analytics endpoint"""
+    print_test_header("Dashboard Analytics - GET /api/analytics/dashboard")
+    
+    if not access_token:
+        print("❌ No access token available for testing")
+        return False
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+    
+    try:
+        response = requests.get(
+            f"{API_BASE}/analytics/dashboard",
+            headers=headers,
+            timeout=10
+        )
+        
+        print_result("/api/analytics/dashboard", response.status_code, response.json() if response.content else {})
+        
+        if response.status_code == 200:
+            data = response.json()
+            required_fields = ["total_sites", "total_interactions", "total_conversations", "active_sessions", "recent_interactions", "site_performance"]
+            missing_fields = [field for field in required_fields if field not in data]
+            
+            if missing_fields:
+                print(f"❌ Missing required fields: {missing_fields}")
+                return False
+            else:
+                print("✅ All required fields present")
+                
+            # Verify data types
+            if isinstance(data.get("total_sites"), int):
+                print("✅ total_sites is integer")
+            else:
+                print("❌ total_sites is not integer")
+                return False
+                
+            if isinstance(data.get("recent_interactions"), list):
+                print("✅ recent_interactions is list")
+            else:
+                print("❌ recent_interactions is not list")
+                return False
+                
+            if isinstance(data.get("site_performance"), list):
+                print("✅ site_performance is list")
+            else:
+                print("❌ site_performance is not list")
+                return False
+                
+            print(f"ℹ️ Dashboard stats: {data.get('total_sites')} sites, {data.get('total_interactions')} interactions")
+            return True
+        else:
+            print(f"❌ Expected status 200, got {response.status_code}")
+            return False
+            
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Request failed: {e}")
+        return False
+    except json.JSONDecodeError as e:
+        print(f"❌ Invalid JSON response: {e}")
+        return False
+
+def test_complete_dashboard_flow():
+    """Test complete dashboard flow from registration to analytics"""
+    print_test_header("Complete Dashboard Flow Test")
+    
+    print("🔄 Testing complete flow: Registration → Login → Site Creation → Site Listing → Dashboard Analytics")
+    
+    # Step 1: Register user
+    print("\n--- Step 1: User Registration ---")
+    registration_success = test_user_registration()
+    if not registration_success:
+        print("❌ Registration failed, cannot continue flow test")
+        return False
+    
+    # Step 2: Login user
+    print("\n--- Step 2: User Login ---")
+    login_success, access_token = test_user_login()
+    if not login_success or not access_token:
+        print("❌ Login failed, cannot continue flow test")
+        return False
+    
+    # Step 3: Create site
+    print("\n--- Step 3: Site Creation ---")
+    site_creation_success, site_id = test_site_creation(access_token)
+    if not site_creation_success:
+        print("❌ Site creation failed, cannot continue flow test")
+        return False
+    
+    # Step 4: List sites
+    print("\n--- Step 4: Site Listing ---")
+    site_listing_success = test_site_listing(access_token)
+    if not site_listing_success:
+        print("❌ Site listing failed, cannot continue flow test")
+        return False
+    
+    # Step 5: Get dashboard analytics
+    print("\n--- Step 5: Dashboard Analytics ---")
+    analytics_success = test_dashboard_analytics(access_token)
+    if not analytics_success:
+        print("❌ Dashboard analytics failed, cannot continue flow test")
+        return False
+    
+    print("\n🎉 Complete dashboard flow test passed!")
+    return True
+
 def main():
     """Run all backend API tests"""
     print("🚀 Starting AI Voice Assistant Backend API Tests")
