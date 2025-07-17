@@ -67,6 +67,7 @@ export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
   const API_URL = process.env.REACT_APP_BACKEND_URL;
+  console.log('AuthContext: API_URL is', API_URL);
 
   // Setup axios interceptors
   useEffect(() => {
