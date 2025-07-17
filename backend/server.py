@@ -116,7 +116,7 @@ async def health_check():
 
 @app.post("/api/chat")
 async def chat_with_ai(request: Request):
-    """Main chat endpoint for the voice widget"""
+    """Main chat endpoint for the voice widget with conversation memory"""
     try:
         body = await request.json()
         message = body.get("message")
@@ -126,43 +126,73 @@ async def chat_with_ai(request: Request):
         if not message:
             raise HTTPException(status_code=400, detail="Message is required")
         
+        # Get site-specific configuration
+        site_config = await get_site_configuration(site_id)
+        
         # AI Response logic
         ai_response = ""
         model_used = "demo"
         
         if groq_client:
             try:
-                # Create conversation context
+                # Get conversation history for context
+                conversation_history = await get_conversation_history(session_id, site_id)
+                
+                # Create conversation context with memory
                 conversation_context = [
                     {
                         "role": "system",
-                        "content": "You are a helpful AI assistant embedded on a website. You should be friendly, concise, and helpful. Keep responses brief and conversational, suitable for voice interaction."
-                    },
-                    {
-                        "role": "user",
-                        "content": message
+                        "content": create_system_prompt(site_config)
                     }
                 ]
                 
-                # Get response from GROQ
-                completion = groq_client.chat.completions.create(
-                    model="llama3-8b-8192",  # Using Meta's Llama model
-                    messages=conversation_context,
-                    max_tokens=150,
-                    temperature=0.7
-                )
+                # Add conversation history (last 10 messages for context)
+                for msg in conversation_history[-10:]:
+                    conversation_context.append({
+                        "role": "user",
+                        "content": msg["user_message"]
+                    })
+                    conversation_context.append({
+                        "role": "assistant",
+                        "content": msg["ai_response"]
+                    })
                 
-                ai_response = completion.choices[0].message.content
-                model_used = "llama3-8b-8192"
+                # Add current message
+                conversation_context.append({
+                    "role": "user",
+                    "content": message
+                })
+                
+                # Get custom API key for site or use default
+                api_key = site_config.get("groq_api_key") or os.getenv("GROQ_API_KEY")
+                if api_key:
+                    # Create client with custom API key if provided
+                    client = Groq(api_key=api_key) if site_config.get("groq_api_key") else groq_client
+                    
+                    # Get response from GROQ
+                    completion = client.chat.completions.create(
+                        model="llama3-8b-8192",  # Using Meta's Llama model
+                        messages=conversation_context,
+                        max_tokens=200,  # Increased for better responses
+                        temperature=0.7,
+                        stream=False
+                    )
+                    
+                    ai_response = completion.choices[0].message.content
+                    model_used = "llama3-8b-8192"
+                    
+                else:
+                    raise Exception("No GROQ API key available")
                 
             except Exception as e:
                 logger.error(f"GROQ API error: {e}")
-                # Fallback to demo response
-                ai_response = generate_demo_response(message)
+                # Fallback to demo response with context
+                ai_response = generate_contextual_demo_response(message, conversation_history)
                 model_used = "demo_fallback"
         else:
-            # Demo mode response
-            ai_response = generate_demo_response(message)
+            # Demo mode response with context
+            conversation_history = await get_conversation_history(session_id, site_id)
+            ai_response = generate_contextual_demo_response(message, conversation_history)
             model_used = "demo"
         
         # Store conversation in MongoDB if available
@@ -174,7 +204,8 @@ async def chat_with_ai(request: Request):
                     "user_message": message,
                     "ai_response": ai_response,
                     "timestamp": datetime.utcnow(),
-                    "model": model_used
+                    "model": model_used,
+                    "tokens_used": len(message.split()) + len(ai_response.split())  # Approximate token count
                 }
                 db.conversations.insert_one(conversation_log)
                 logger.info(f"Conversation logged for session {session_id}")
@@ -185,7 +216,8 @@ async def chat_with_ai(request: Request):
             "response": ai_response,
             "session_id": session_id,
             "timestamp": datetime.utcnow().isoformat(),
-            "model": model_used
+            "model": model_used,
+            "conversation_length": len(conversation_history) + 1
         }
         
     except HTTPException:
