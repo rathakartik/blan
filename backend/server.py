@@ -378,12 +378,13 @@ async def get_status():
 
 @app.post("/api/chat")
 async def chat_with_ai(request: Request):
-    """Main chat endpoint for the voice widget with conversation memory and security"""
+    """Main chat endpoint for the voice widget with 90-day conversation memory"""
     try:
         body = await request.json()
         message = body.get("message", "").strip()
         session_id = body.get("session_id", str(uuid.uuid4()))
         site_id = body.get("site_id", "demo")
+        visitor_id = body.get("visitor_id", None)
         
         # Input validation and sanitization
         if not message:
@@ -404,20 +405,23 @@ async def chat_with_ai(request: Request):
         # Get site-specific configuration
         site_config = await get_site_configuration(site_id)
         
+        # Get visitor's historical context (90 days)
+        visitor_context = await get_visitor_context(visitor_id, site_id) if visitor_id else None
+        
         # AI Response logic with improved error handling
         ai_response = ""
         model_used = "demo"
         
         try:
             if groq_client:
-                # Get conversation history for context
+                # Get recent conversation history for immediate context
                 conversation_history = await get_conversation_history(session_id, site_id)
                 
                 # Create conversation context with memory
                 conversation_context = [
                     {
                         "role": "system",
-                        "content": create_system_prompt(site_config)
+                        "content": create_system_prompt_with_memory(site_config, visitor_context)
                     }
                 ]
                 
@@ -433,7 +437,7 @@ async def chat_with_ai(request: Request):
                     })
                 
                 # Add current message with enhanced context
-                enhanced_message = await enhance_ai_context(message, site_config)
+                enhanced_message = await enhance_ai_context_with_memory(message, site_config, visitor_context)
                 conversation_context.append({
                     "role": "user",
                     "content": enhanced_message
@@ -467,25 +471,31 @@ async def chat_with_ai(request: Request):
             logger.error(f"GROQ API error: {e}")
             # Fallback to demo response with context
             conversation_history = await get_conversation_history(session_id, site_id)
-            ai_response = generate_contextual_demo_response(message, conversation_history)
+            ai_response = generate_contextual_demo_response_with_memory(message, conversation_history, visitor_context)
             model_used = "demo_fallback"
         
-        # Store conversation in MongoDB if available
+        # Store conversation in MongoDB with visitor ID
         if db is not None:
             try:
                 conversation_log = {
                     "session_id": session_id,
                     "site_id": site_id,
+                    "visitor_id": visitor_id,
                     "user_message": message,
                     "ai_response": ai_response,
                     "timestamp": datetime.utcnow(),
                     "model": model_used,
                     "tokens_used": len(message.split()) + len(ai_response.split()),
                     "client_ip": client_ip,
-                    "user_agent": request.headers.get("user-agent", "unknown")
+                    "user_agent": request.headers.get("user-agent", "unknown"),
+                    "expires_at": datetime.utcnow() + timedelta(days=90)  # Auto-expire after 90 days
                 }
                 db.conversations.insert_one(conversation_log)
-                logger.info(f"Conversation logged for session {session_id}")
+                
+                # Create index for automatic cleanup
+                db.conversations.create_index("expires_at", expireAfterSeconds=0)
+                
+                logger.info(f"Conversation logged for visitor {visitor_id}, session {session_id}")
             except Exception as e:
                 logger.error(f"Failed to log conversation: {e}")
         
@@ -495,9 +505,11 @@ async def chat_with_ai(request: Request):
         return {
             "response": ai_response,
             "session_id": session_id,
+            "visitor_id": visitor_id,
             "timestamp": datetime.utcnow().isoformat(),
             "model": model_used,
             "conversation_length": len(conversation_history) + 1,
+            "is_returning_visitor": visitor_context is not None and len(visitor_context.get("previous_conversations", [])) > 0,
             "rate_limit_remaining": MAX_CHAT_REQUESTS_PER_MINUTE - len(rate_limits[client_ip]["chat"])
         }
         
