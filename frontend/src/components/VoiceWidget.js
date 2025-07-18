@@ -77,7 +77,7 @@ const VoiceWidget = ({ config = {} }) => {
 
   // Auto-greet when widget opens - separate effect to prevent multiple triggers
   useEffect(() => {
-    if (widgetConfig.auto_greet && !hasGreeted) {
+    if (widgetConfig.auto_greet && !hasGreeted && isOpen) {
       const greetingTimer = setTimeout(() => {
         console.log('Triggering auto-greeting...');
         if (widgetConfig.voice_enabled && synthesisRef.current) {
@@ -86,11 +86,11 @@ const VoiceWidget = ({ config = {} }) => {
         addMessage('bot', widgetConfig.greeting_message);
         setHasGreeted(true);
         logInteraction('auto_greeting');
-      }, 1000);
+      }, 500); // Reduced delay for faster response
 
       return () => clearTimeout(greetingTimer);
     }
-  }, [widgetConfig.auto_greet, widgetConfig.voice_enabled, widgetConfig.greeting_message, hasGreeted]);
+  }, [widgetConfig.auto_greet, widgetConfig.voice_enabled, widgetConfig.greeting_message, hasGreeted, isOpen]);
 
   // Widget initialization - ensure immediate setup
   useEffect(() => {
