@@ -10,6 +10,7 @@ const VoiceWidget = ({ config = {} }) => {
   const [sessionId] = useState(() => uuidv4());
   const [hasGreeted, setHasGreeted] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
+  const [textInput, setTextInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   
   const recognitionRef = useRef(null);
