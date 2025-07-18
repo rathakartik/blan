@@ -73,10 +73,13 @@ const VoiceWidget = ({ config = {} }) => {
     if ('speechSynthesis' in window) {
       synthesisRef.current = window.speechSynthesis;
     }
+  }, [widgetConfig.language]);
 
-    // Auto-greet when widget opens
+  // Auto-greet when widget opens - separate effect to prevent multiple triggers
+  useEffect(() => {
     if (widgetConfig.auto_greet && !hasGreeted) {
-      setTimeout(() => {
+      const greetingTimer = setTimeout(() => {
+        console.log('Triggering auto-greeting...');
         if (widgetConfig.voice_enabled && synthesisRef.current) {
           speakMessage(widgetConfig.greeting_message);
         }
@@ -84,8 +87,10 @@ const VoiceWidget = ({ config = {} }) => {
         setHasGreeted(true);
         logInteraction('auto_greeting');
       }, 1000);
+
+      return () => clearTimeout(greetingTimer);
     }
-  }, [widgetConfig, hasGreeted]);
+  }, [widgetConfig.auto_greet, widgetConfig.voice_enabled, widgetConfig.greeting_message, hasGreeted]);
 
   // Auto-scroll to bottom of messages
   useEffect(() => {
