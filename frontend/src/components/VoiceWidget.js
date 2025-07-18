@@ -411,6 +411,40 @@ const VoiceWidget = ({ config = {} }) => {
               </div>
             )}
             
+            {/* Text Input Section */}
+            <div className="text-input-section">
+              <form onSubmit={handleTextSubmit} className="text-input-form">
+                <input
+                  type="text"
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Type your message..."
+                  disabled={isProcessing}
+                  className="text-input"
+                  style={{
+                    borderColor: widgetConfig.theme.primary_color,
+                    color: widgetConfig.theme.text_color
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={!textInput.trim() || isProcessing}
+                  className="send-btn"
+                  style={{
+                    backgroundColor: widgetConfig.theme.primary_color,
+                    color: widgetConfig.theme.background_color
+                  }}
+                  aria-label="Send message"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </form>
+            </div>
+            
             <div className="widget-footer">
               <span className="powered-by">Powered by AI Voice Assistant</span>
             </div>
