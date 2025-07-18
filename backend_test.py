@@ -1430,6 +1430,14 @@ def main():
     test_results["widget_config"] = test_widget_config_endpoint()
     test_results["analytics"] = test_analytics_endpoint()
     test_results["conversation_flow"] = test_conversation_flow()
+    test_results["enhanced_conversation_memory"] = test_enhanced_conversation_memory()
+    
+    # Run 90-Day Memory Functionality Tests
+    print("\n" + "="*60)
+    print("90-DAY MEMORY FUNCTIONALITY TESTS")
+    print("="*60)
+    
+    test_results["90_day_memory"] = test_90_day_memory_functionality()
     
     # Run Phase 2 tests (dashboard functionality)
     print("\n" + "="*60)
@@ -1465,7 +1473,7 @@ def main():
     
     # Phase 1 results
     print("\nPhase 1 (Widget API):")
-    phase1_tests = ["health", "chat", "widget_config", "analytics", "conversation_flow"]
+    phase1_tests = ["health", "chat", "widget_config", "analytics", "conversation_flow", "enhanced_conversation_memory"]
     phase1_passed = sum(1 for test in phase1_tests if test_results.get(test, False))
     
     for test_name in phase1_tests:
@@ -1474,6 +1482,18 @@ def main():
         print(f"  {test_name.upper().replace('_', ' ')}: {status}")
     
     print(f"  Phase 1 Result: {phase1_passed}/{len(phase1_tests)} tests passed")
+    
+    # 90-Day Memory results
+    print("\n90-Day Memory Functionality:")
+    memory_tests = ["90_day_memory"]
+    memory_passed = sum(1 for test in memory_tests if test_results.get(test, False))
+    
+    for test_name in memory_tests:
+        result = test_results.get(test_name, False)
+        status = "✅ PASSED" if result else "❌ FAILED"
+        print(f"  {test_name.upper().replace('_', ' ')}: {status}")
+    
+    print(f"  Memory Tests Result: {memory_passed}/{len(memory_tests)} tests passed")
     
     # Phase 2 results
     print("\nPhase 2 (Dashboard API):")
