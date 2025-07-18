@@ -223,7 +223,20 @@ const VoiceWidget = ({ config = {} }) => {
     }
   };
 
-  const startListening = () => {
+  const handleTextSubmit = (e) => {
+    e.preventDefault();
+    if (textInput.trim()) {
+      handleUserMessage(textInput.trim(), 'text');
+      setTextInput('');
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleTextSubmit(e);
+    }
+  };
     if (!speechSupported || !recognitionRef.current) {
       addMessage('system', 'Speech recognition is not supported in your browser.');
       return;
