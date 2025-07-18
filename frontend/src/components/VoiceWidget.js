@@ -92,6 +92,27 @@ const VoiceWidget = ({ config = {} }) => {
     }
   }, [widgetConfig.auto_greet, widgetConfig.voice_enabled, widgetConfig.greeting_message, hasGreeted]);
 
+  // Widget initialization - ensure immediate setup
+  useEffect(() => {
+    console.log('Widget initialized with session:', sessionId);
+    
+    // Pre-load speech synthesis voices for faster response
+    if ('speechSynthesis' in window) {
+      const loadVoices = () => {
+        const voices = speechSynthesis.getVoices();
+        if (voices.length > 0) {
+          console.log('Speech synthesis voices loaded:', voices.length);
+        }
+      };
+      
+      if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = loadVoices;
+      } else {
+        loadVoices();
+      }
+    }
+  }, [sessionId]);
+
   // Auto-scroll to bottom of messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
