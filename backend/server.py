@@ -445,12 +445,12 @@ async def chat_with_ai(request: Request):
                     # Create client with custom API key if provided
                     client = Groq(api_key=api_key) if site_config.get("groq_api_key") else groq_client
                     
-                    # Get response from GROQ with timeout
+                    # Get response from GROQ with enhanced parameters
                     completion = client.chat.completions.create(
                         model="llama3-8b-8192",
                         messages=conversation_context,
-                        max_tokens=200,
-                        temperature=0.7,
+                        max_tokens=300,  # Increased for more detailed responses
+                        temperature=0.8,  # Slightly higher for more creative responses
                         stream=False
                     )
                     
