@@ -244,8 +244,23 @@ const VoiceWidget = ({ config = {} }) => {
   };
 
   const toggleWidget = () => {
-    setIsOpen(!isOpen);
-    logInteraction(isOpen ? 'widget_close' : 'widget_open');
+    const newIsOpen = !isOpen;
+    setIsOpen(newIsOpen);
+    
+    if (newIsOpen) {
+      // Reset greeting state when widget opens
+      if (widgetConfig.auto_greet) {
+        setHasGreeted(false);
+      }
+      logInteraction('widget_open');
+    } else {
+      logInteraction('widget_close');
+      // Stop any ongoing speech when widget closes
+      if (synthesisRef.current) {
+        synthesisRef.current.cancel();
+        setIsSpeaking(false);
+      }
+    }
   };
 
   const getPositionClasses = () => {
