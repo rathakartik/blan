@@ -173,6 +173,10 @@ const VoiceWidget = ({ config = {} }) => {
     logInteraction(type === 'voice' ? 'voice_input' : 'text_input');
 
     try {
+      // Use AbortController for request timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/chat`, {
         method: 'POST',
         headers: {
@@ -182,25 +186,37 @@ const VoiceWidget = ({ config = {} }) => {
           message: text,
           session_id: sessionId,
           site_id: widgetConfig.site_id
-        })
+        }),
+        signal: controller.signal
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
       addMessage('bot', data.response);
 
-      // Speak the response if voice is enabled
+      // Speak the response if voice is enabled - with priority speaking
       if (widgetConfig.voice_enabled && synthesisRef.current) {
-        speakMessage(data.response);
+        // Cancel any ongoing speech before speaking new response
+        synthesisRef.current.cancel();
+        setTimeout(() => {
+          speakMessage(data.response);
+        }, 100);
       }
 
       logInteraction('ai_response');
     } catch (error) {
       console.error('Chat error:', error);
-      addMessage('system', 'Sorry, I encountered an error. Please try again.');
+      
+      if (error.name === 'AbortError') {
+        addMessage('system', 'Request timeout. Please try again.');
+      } else {
+        addMessage('system', 'Sorry, I encountered an error. Please try again.');
+      }
     } finally {
       setIsProcessing(false);
     }
