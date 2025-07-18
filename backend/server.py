@@ -983,7 +983,7 @@ async def log_interaction(request: Request):
 
 async def get_visitor_context(visitor_id: str, site_id: str) -> Dict[str, Any]:
     """Get visitor's historical context from last 90 days"""
-    if not visitor_id or not db:
+    if not visitor_id or db is None:
         return None
     
     try:
