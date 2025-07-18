@@ -1081,7 +1081,7 @@ Remember: You are here to make the visitor's experience better and help them acc
     return base_prompt
 
 def filter_ai_response(response: str) -> str:
-    """Filter AI responses for inappropriate content"""
+    """Filter AI responses for inappropriate content while preserving helpful information"""
     if not response:
         return "I apologize, but I couldn't generate a proper response. Please try again."
     
@@ -1089,18 +1089,17 @@ def filter_ai_response(response: str) -> str:
     for pattern in BLOCKED_PATTERNS:
         response = re.sub(pattern, '', response, flags=re.IGNORECASE)
     
-    # Basic profanity filter (extend as needed)
+    # Basic profanity filter (minimal to preserve natural conversation)
     profanity_words = [
-        'fuck', 'shit', 'damn', 'hell', 'bitch', 'ass', 'crap',
-        'piss', 'bastard', 'whore', 'slut', 'retard'
+        'fuck', 'shit', 'bitch', 'ass', 'damn'
     ]
     
     for word in profanity_words:
-        response = re.sub(r'\b' + re.escape(word) + r'\b', '***', response, flags=re.IGNORECASE)
+        response = re.sub(r'\b' + re.escape(word) + r'\b', '[filtered]', response, flags=re.IGNORECASE)
     
-    # Ensure response is not too long for voice
-    if len(response) > 500:
-        response = response[:497] + "..."
+    # Allow longer responses for detailed explanations (increased limit)
+    if len(response) > 800:
+        response = response[:797] + "..."
     
     return response.strip()
 
