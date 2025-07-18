@@ -8,7 +8,7 @@ import json
 import time
 import uuid
 
-BASE_URL = "https://176ae7ef-98e6-41e1-a834-ea656432ffd5.preview.emergentagent.com"
+BASE_URL = "https://541c1830-b163-4021-82f7-21502eaf185e.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
 def debug_conversation_memory():
