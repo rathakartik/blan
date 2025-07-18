@@ -980,6 +980,212 @@ async def log_interaction(request: Request):
 # ENHANCED AI CONVERSATION FUNCTIONS
 # ============================================================================
 
+async def get_visitor_context(visitor_id: str, site_id: str) -> Dict[str, Any]:
+    """Get visitor's historical context from last 90 days"""
+    if not visitor_id or not db:
+        return None
+    
+    try:
+        # Get visitor's conversation history from last 90 days
+        ninety_days_ago = datetime.utcnow() - timedelta(days=90)
+        
+        # Get conversation summary
+        conversations = list(db.conversations.find({
+            "visitor_id": visitor_id,
+            "site_id": site_id,
+            "timestamp": {"$gte": ninety_days_ago}
+        }).sort("timestamp", -1).limit(50))  # Last 50 conversations
+        
+        if not conversations:
+            return None
+        
+        # Extract key information
+        total_conversations = len(conversations)
+        first_visit = conversations[-1]["timestamp"] if conversations else None
+        last_visit = conversations[0]["timestamp"] if conversations else None
+        
+        # Get common topics and interests
+        all_messages = []
+        for conv in conversations:
+            all_messages.append(conv.get("user_message", ""))
+        
+        # Extract context insights
+        context = {
+            "visitor_id": visitor_id,
+            "total_conversations": total_conversations,
+            "first_visit": first_visit,
+            "last_visit": last_visit,
+            "is_returning_visitor": total_conversations > 1,
+            "days_since_first_visit": (datetime.utcnow() - first_visit).days if first_visit else 0,
+            "days_since_last_visit": (datetime.utcnow() - last_visit).days if last_visit else 0,
+            "recent_topics": extract_topics_from_messages(all_messages[:10]),  # Last 10 messages
+            "previous_conversations": conversations[:5]  # Last 5 conversations for context
+        }
+        
+        return context
+        
+    except Exception as e:
+        logger.error(f"Error getting visitor context: {e}")
+        return None
+
+def extract_topics_from_messages(messages: List[str]) -> List[str]:
+    """Extract key topics from user messages"""
+    topics = []
+    keywords = {
+        "product": ["product", "service", "offer", "buy", "purchase", "price", "cost"],
+        "support": ["help", "problem", "issue", "error", "trouble", "fix", "support"],
+        "navigation": ["find", "where", "navigate", "locate", "search", "page"],
+        "information": ["about", "info", "details", "explain", "what", "how", "why"],
+        "account": ["account", "login", "register", "profile", "settings", "password"]
+    }
+    
+    for message in messages:
+        message_lower = message.lower()
+        for topic, words in keywords.items():
+            if any(word in message_lower for word in words):
+                if topic not in topics:
+                    topics.append(topic)
+    
+    return topics
+
+async def enhance_ai_context_with_memory(message: str, site_config: Dict[str, Any], visitor_context: Dict[str, Any]) -> str:
+    """Enhance AI context with website-specific information and visitor memory"""
+    context_parts = [f"User Question: {message}"]
+    
+    # Add website context
+    context_parts.append(f"""
+Website Context:
+- Site ID: {site_config.get('site_id', 'unknown')}
+- Bot Name: {site_config.get('bot_name', 'AI Assistant')}
+- Language: {site_config.get('language', 'en-US')}""")
+    
+    # Add visitor memory context if available
+    if visitor_context:
+        context_parts.append(f"""
+Visitor Memory (Last 90 Days):
+- Total Conversations: {visitor_context.get('total_conversations', 0)}
+- First Visit: {visitor_context.get('first_visit', 'Unknown')}
+- Last Visit: {visitor_context.get('last_visit', 'Unknown')}
+- Days Since First Visit: {visitor_context.get('days_since_first_visit', 0)}
+- Days Since Last Visit: {visitor_context.get('days_since_last_visit', 0)}
+- Previous Topics: {', '.join(visitor_context.get('recent_topics', []))}
+- Is Returning Visitor: {visitor_context.get('is_returning_visitor', False)}""")
+        
+        # Add context from recent conversations
+        if visitor_context.get('previous_conversations'):
+            context_parts.append("\nRecent Conversation Context:")
+            for i, conv in enumerate(visitor_context['previous_conversations'][:3]):
+                context_parts.append(f"- {conv.get('user_message', '')[:100]}...")
+    
+    context_parts.append("\nPlease provide a helpful, personalized response considering the visitor's history and context.")
+    
+    return "\n".join(context_parts)
+
+def create_system_prompt_with_memory(site_config: Dict[str, Any], visitor_context: Dict[str, Any]) -> str:
+    """Create customized system prompt with visitor memory"""
+    bot_name = site_config.get("bot_name", "AI Assistant")
+    language = site_config.get("language", "en-US")
+    
+    # Base prompt
+    base_prompt = f"""You are {bot_name}, an intelligent AI assistant embedded on a website to help visitors with all their questions and needs."""
+    
+    # Add personalization based on visitor context
+    if visitor_context and visitor_context.get('is_returning_visitor'):
+        total_conversations = visitor_context.get('total_conversations', 0)
+        days_since_first = visitor_context.get('days_since_first_visit', 0)
+        days_since_last = visitor_context.get('days_since_last_visit', 0)
+        recent_topics = visitor_context.get('recent_topics', [])
+        
+        personalization = f"""
+**VISITOR CONTEXT:**
+- This is a returning visitor who has had {total_conversations} conversations with you
+- First visited {days_since_first} days ago
+- Last visited {days_since_last} days ago
+- Previous interests: {', '.join(recent_topics) if recent_topics else 'General inquiries'}
+- Be welcoming and acknowledge their return while being helpful
+
+**PERSONALIZATION GUIDELINES:**
+- Reference their previous interests when relevant
+- Show appreciation for their return
+- Build on previous conversations when appropriate
+- Provide continuity in your assistance"""
+    else:
+        personalization = """
+**VISITOR CONTEXT:**
+- This appears to be a new visitor
+- Provide a warm welcome and comprehensive introduction
+- Be extra helpful in explaining website features and capabilities"""
+    
+    full_prompt = f"""{base_prompt}
+
+{personalization}
+
+**CORE CAPABILITIES:**
+- Answer questions about the website, its content, services, and features
+- Provide general information on any topic visitors ask about
+- Help with navigation and finding information
+- Explain products, services, or content on the website
+- Assist with technical questions about web technologies
+- Provide recommendations and suggestions
+- Help with troubleshooting common issues
+- Offer guidance on how to use the website effectively
+
+**CONVERSATION STYLE:**
+- Be friendly, professional, and conversational
+- Keep responses concise (under 200 words) for voice compatibility
+- Remember conversation history and maintain context
+- Ask clarifying questions when needed
+- Provide specific, actionable information
+- Use a helpful, supportive tone
+
+**LANGUAGE:** {language}
+
+Remember: You are here to make the visitor's experience better and help them accomplish their goals on this website. Use their history to provide more personalized, relevant assistance!"""
+    
+    return full_prompt
+
+def generate_contextual_demo_response_with_memory(message: str, conversation_history: List[Dict[str, Any]], visitor_context: Dict[str, Any]) -> str:
+    """Generate demo responses with conversation context and visitor memory"""
+    message_lower = message.lower()
+    
+    # Check if this is a returning visitor
+    is_returning = visitor_context and visitor_context.get('is_returning_visitor', False)
+    
+    # Personalized greetings for returning visitors
+    if any(greeting in message_lower for greeting in ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening']):
+        if is_returning:
+            days_since_last = visitor_context.get('days_since_last_visit', 0)
+            total_conversations = visitor_context.get('total_conversations', 0)
+            
+            if days_since_last == 0:
+                return f"Welcome back! I see we've been talking today. I'm here to continue helping you with anything you need on this website. How can I assist you further?"
+            elif days_since_last == 1:
+                return f"Welcome back! Good to see you again so soon. We've had {total_conversations} conversations before. How can I help you today?"
+            elif days_since_last <= 7:
+                return f"Welcome back! It's been {days_since_last} days since we last chatted. I remember our previous conversations about {', '.join(visitor_context.get('recent_topics', ['general topics']))}. How can I help you today?"
+            else:
+                return f"Welcome back! It's been a while since we last talked ({days_since_last} days ago). I'm here to help with anything you need on this website. What can I assist you with?"
+        else:
+            if conversation_history:
+                return "Hello again! How else can I assist you today?"
+            else:
+                return "Hello! I'm your AI assistant, ready to help you navigate this website and answer any questions you have. What can I help you with today?"
+    
+    # Use the original contextual response function with memory enhancements
+    base_response = generate_contextual_demo_response(message, conversation_history)
+    
+    # Add personalization for returning visitors
+    if is_returning and visitor_context:
+        recent_topics = visitor_context.get('recent_topics', [])
+        if recent_topics:
+            # If the current question relates to previous topics, mention it
+            current_topics = extract_topics_from_messages([message])
+            common_topics = set(recent_topics) & set(current_topics)
+            if common_topics:
+                base_response += f" I notice you've asked about {', '.join(common_topics)} before - I'm here to help you dive deeper into this topic!"
+    
+    return base_response
+
 async def get_conversation_history(session_id: str, site_id: str, limit: int = 10) -> List[Dict[str, Any]]:
     """Get conversation history for a session"""
     try:
