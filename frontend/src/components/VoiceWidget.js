@@ -184,7 +184,7 @@ const VoiceWidget = ({ config = {} }) => {
   };
 
   const handleUserMessage = async (text, type = 'text') => {
-    if (!text.trim()) return;
+    if (!text.trim() || !visitorId) return;
 
     setIsProcessing(true);
     addMessage('user', text);
@@ -203,7 +203,8 @@ const VoiceWidget = ({ config = {} }) => {
         body: JSON.stringify({
           message: text,
           session_id: sessionId,
-          site_id: widgetConfig.site_id
+          site_id: widgetConfig.site_id,
+          visitor_id: visitorId // Add visitor ID to request
         }),
         signal: controller.signal
       });
