@@ -1089,7 +1089,7 @@ def filter_ai_response(response: str) -> str:
     return response.strip()
 
 def generate_contextual_demo_response(message: str, conversation_history: List[Dict[str, Any]]) -> str:
-    """Generate demo responses with conversation context"""
+    """Generate demo responses with conversation context and enhanced capabilities"""
     message_lower = message.lower()
     
     # Check if this is a follow-up based on history
@@ -1097,50 +1097,75 @@ def generate_contextual_demo_response(message: str, conversation_history: List[D
         last_response = conversation_history[-1].get("ai_response", "").lower()
         
         # Handle follow-up questions
-        if any(word in message_lower for word in ['more', 'tell me more', 'continue', 'elaborate']):
-            if 'weather' in last_response:
-                return "For detailed weather information, I'd recommend checking weather.com or your local weather app. They provide hourly forecasts, radar maps, and severe weather alerts."
+        if any(word in message_lower for word in ['more', 'tell me more', 'continue', 'elaborate', 'explain further']):
+            if 'website' in last_response or 'site' in last_response:
+                return "I can help you understand more about this website's features, navigation, content, or any specific functionality you're interested in. What particular aspect would you like to know more about?"
+            elif 'product' in last_response or 'service' in last_response:
+                return "I'd be happy to provide more details about products or services. I can explain features, benefits, pricing, or help you compare options. What specific information are you looking for?"
             elif 'help' in last_response:
-                return "I can assist with general questions, provide information, and help guide you through various topics. What specific area would you like help with?"
+                return "I'm here to assist with anything you need! I can help with website navigation, answer questions about content, explain features, troubleshoot issues, or provide general information. What would you like help with?"
             else:
                 return "I'd be happy to provide more details! Could you be more specific about what aspect you'd like to know more about?"
         
         # Handle clarification requests
-        if any(word in message_lower for word in ['what do you mean', 'explain', 'clarify']):
-            return "Let me clarify that for you. Could you tell me which part you'd like me to explain in more detail?"
+        if any(word in message_lower for word in ['what do you mean', 'explain', 'clarify', 'how', 'why']):
+            return "Let me clarify that for you. I'm here to help explain anything about this website, its features, or answer any questions you have. What specifically would you like me to explain?"
     
-    # Standard responses with context awareness
-    if any(greeting in message_lower for greeting in ['hello', 'hi', 'hey', 'good morning', 'good afternoon']):
+    # Enhanced responses for various query types
+    
+    # Greetings and basic interactions
+    if any(greeting in message_lower for greeting in ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening']):
         if conversation_history:
-            return "Hello again! How else can I assist you today?"
+            return "Hello again! I'm here to help you with anything you need on this website. Do you have any questions about our content, features, or how to find what you're looking for?"
         else:
-            return "Hello! I'm your AI voice assistant. How can I help you today?"
+            return "Hello! I'm your AI assistant, ready to help you navigate this website and answer any questions you have. What can I help you with today?"
     
-    elif any(question in message_lower for question in ['how are you', 'how do you do']):
-        return "I'm doing great, thank you for asking! I'm here to help answer your questions and assist with anything you need."
+    # Website-specific queries
+    if any(word in message_lower for word in ['website', 'site', 'page', 'navigation', 'menu', 'find']):
+        return "I can help you navigate this website and find what you're looking for. I can explain features, help you locate specific content, or guide you through any processes. What are you trying to find or accomplish?"
     
-    elif any(word in message_lower for word in ['help', 'what can you do', 'capabilities']):
-        return "I can help you with questions, provide information, and have conversations. I remember our chat history, so feel free to ask follow-up questions. What would you like to know?"
+    # Product/Service queries
+    if any(word in message_lower for word in ['product', 'service', 'offer', 'price', 'cost', 'buy', 'purchase']):
+        return "I can help you learn about products and services offered here. I can explain features, compare options, discuss pricing, or guide you through the selection process. What specific information are you looking for?"
     
-    elif any(word in message_lower for word in ['weather', 'temperature']):
-        return "I don't have access to current weather data, but I can help you find weather information or answer other questions!"
+    # Technical support queries
+    if any(word in message_lower for word in ['problem', 'issue', 'error', 'not working', 'broken', 'fix', 'trouble']):
+        return "I'm here to help resolve any issues you're experiencing. I can provide troubleshooting steps, explain how features work, or guide you to the right resources. What specific problem are you encountering?"
     
-    elif any(word in message_lower for word in ['time', 'date']):
-        return "I don't have access to real-time data, but I can help you with other questions. Is there anything else I can assist you with?"
+    # How-to queries
+    if any(word in message_lower for word in ['how to', 'how do', 'how can', 'step', 'guide', 'tutorial']):
+        return "I'd be happy to provide step-by-step guidance! I can walk you through processes, explain how to use features, or provide instructions. What would you like to learn how to do?"
     
-    elif any(word in message_lower for word in ['thank', 'thanks']):
-        return "You're welcome! I'm glad I could help. Is there anything else you'd like to know?"
+    # Contact and support queries
+    if any(word in message_lower for word in ['contact', 'support', 'help', 'customer service', 'phone', 'email']):
+        return "I can help you find contact information and support resources. I can also try to answer your questions directly or guide you to the right person or department. What do you need assistance with?"
     
-    elif any(word in message_lower for word in ['bye', 'goodbye', 'see you']):
-        return "Goodbye! Feel free to come back anytime if you have more questions. Have a great day!"
+    # About/Information queries
+    if any(word in message_lower for word in ['about', 'company', 'business', 'who', 'what is', 'information']):
+        return "I can share information about this website, the company, services, or any other details you're curious about. What specific information would you like to know?"
     
-    else:
-        # Context-aware response
-        context_info = ""
-        if conversation_history:
-            context_info = " I remember our previous conversation, so feel free to ask follow-up questions."
-        
-        return f"That's an interesting question about '{message}'. I'm currently in demo mode, but I'd be happy to help you explore this topic further.{context_info} What specific aspect would you like to know more about?"
+    # General capabilities
+    if any(word in message_lower for word in ['what can you do', 'help', 'capabilities', 'assist']):
+        return "I can help you with a wide range of things! I can answer questions about this website, explain features, help you navigate, troubleshoot issues, provide information about products or services, and much more. What would you like assistance with?"
+    
+    # Personal questions
+    if any(question in message_lower for question in ['how are you', 'how do you do', 'what are you']):
+        return "I'm doing great and I'm here to help! I'm an AI assistant designed to make your experience on this website better. I can answer questions, provide guidance, and help you find what you need. How can I assist you today?"
+    
+    # Gratitude responses
+    if any(word in message_lower for word in ['thank', 'thanks', 'appreciate']):
+        return "You're very welcome! I'm glad I could help. If you have any other questions or need assistance with anything else on this website, feel free to ask anytime!"
+    
+    # Goodbye responses
+    if any(word in message_lower for word in ['bye', 'goodbye', 'see you', 'later']):
+        return "Goodbye! It was great helping you today. Feel free to come back anytime if you have more questions or need assistance with anything on this website. Have a wonderful day!"
+    
+    # Default intelligent response for any other query
+    context_info = ""
+    if conversation_history:
+        context_info = " I remember our conversation, so feel free to ask follow-up questions or explore related topics."
+    
+    return f"That's an interesting question about '{message}'. I'm here to help with anything related to this website - whether it's navigation, features, content, or general information. I can provide explanations, guidance, or help you find what you're looking for.{context_info} What specific aspect would you like to know more about?"
 
 def generate_demo_response(message: str) -> str:
     """Generate demo responses for testing purposes"""
