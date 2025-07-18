@@ -237,6 +237,8 @@ const VoiceWidget = ({ config = {} }) => {
       handleTextSubmit(e);
     }
   };
+
+  const startListening = () => {
     if (!speechSupported || !recognitionRef.current) {
       addMessage('system', 'Speech recognition is not supported in your browser.');
       return;
