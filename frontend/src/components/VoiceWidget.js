@@ -12,6 +12,23 @@ const VoiceWidget = ({ config = {} }) => {
   const [speechSupported, setSpeechSupported] = useState(false);
   const [textInput, setTextInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [visitorId, setVisitorId] = useState(null);
+  
+  // Generate or retrieve visitor ID
+  useEffect(() => {
+    const getVisitorId = () => {
+      let id = localStorage.getItem('ai_assistant_visitor_id');
+      if (!id) {
+        id = `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('ai_assistant_visitor_id', id);
+      }
+      return id;
+    };
+    
+    const id = getVisitorId();
+    setVisitorId(id);
+    console.log('Visitor ID:', id);
+  }, []);
   
   const recognitionRef = useRef(null);
   const synthesisRef = useRef(null);
