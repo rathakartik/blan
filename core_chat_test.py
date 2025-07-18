@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 
 # Configuration
-BASE_URL = "https://f0341106-bd77-4e00-92aa-54bbfa54a6c4.preview.emergentagent.com"
+BASE_URL = "https://176ae7ef-98e6-41e1-a834-ea656432ffd5.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
 def print_test_header(test_name):
