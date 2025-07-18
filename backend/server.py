@@ -432,10 +432,11 @@ async def chat_with_ai(request: Request):
                         "content": msg["ai_response"]
                     })
                 
-                # Add current message
+                # Add current message with enhanced context
+                enhanced_message = await enhance_ai_context(message, site_config)
                 conversation_context.append({
                     "role": "user",
-                    "content": message
+                    "content": enhanced_message
                 })
                 
                 # Get custom API key for site or use default
