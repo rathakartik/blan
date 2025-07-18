@@ -1015,6 +1015,21 @@ def get_default_site_config() -> Dict[str, Any]:
         "groq_api_key": None
     }
 
+async def enhance_ai_context(message: str, site_config: Dict[str, Any]) -> str:
+    """Enhance AI context with website-specific information"""
+    # Add website context to the message for better AI understanding
+    site_context = f"""
+Website Context:
+- Site ID: {site_config.get('site_id', 'unknown')}
+- Bot Name: {site_config.get('bot_name', 'AI Assistant')}
+- Language: {site_config.get('language', 'en-US')}
+
+User Question: {message}
+
+Please provide a helpful response considering you are an AI assistant on this website."""
+    
+    return site_context
+
 def create_system_prompt(site_config: Dict[str, Any]) -> str:
     """Create customized system prompt based on site configuration"""
     bot_name = site_config.get("bot_name", "AI Assistant")
