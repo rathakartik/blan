@@ -10,4 +10,5 @@ requests==2.31.0
 passlib[bcrypt]==1.7.4
 email-validator==2.1.0
 httpx==0.25.0
+httpcore==1.0.9
 psutil==5.9.5
