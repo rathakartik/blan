@@ -32,7 +32,7 @@ const VoiceWidget = ({ config = {} }) => {
     site_id: "default"
   };
 
-  const widgetConfig = { ...defaultConfig, ...config };
+  const widgetConfig = useMemo(() => ({ ...defaultConfig, ...config }), [config]);
 
   // Initialize speech recognition and synthesis
   useEffect(() => {
