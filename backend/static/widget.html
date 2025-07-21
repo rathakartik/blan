@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Assistant Widget</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: transparent;
+            overflow: hidden;
+        }
+        
+        .widget-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3B82F6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-message {
+            padding: 20px;
+            text-align: center;
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="widget-container">
+        <div class="loading-spinner"></div>
+    </div>
+    
+    <script>
+        // Widget configuration from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const siteId = urlParams.get('site_id') || 'demo';
+        const backendUrl = window.location.origin;
+        
+        // Set global configuration
+        window.WIDGET_CONFIG = {
+            siteId: siteId,
+            backendUrl: backendUrl,
+            position: 'embedded' // Special position for iframe
+        };
+        
+        // Load main widget script
+        const script = document.createElement('script');
+        script.src = '/static/widget.js';
+        script.setAttribute('data-site-id', siteId);
+        script.setAttribute('data-backend-url', backendUrl);
+        
+        script.onload = function() {
+            // Initialize widget in embedded mode
+            if (window.AIVoiceWidget) {
+                const widget = window.AIVoiceWidget.init({
+                    siteId: siteId,
+                    backendUrl: backendUrl,
+                    embedded: true
+                });
+                
+                // Auto-open widget in embedded mode
+                setTimeout(() => {
+                    if (widget && widget.toggleWidget) {
+                        widget.toggleWidget();
+                    }
+                }, 100);
+                
+                // Remove loading spinner
+                document.querySelector('.loading-spinner').style.display = 'none';
+            }
+        };
+        
+        script.onerror = function() {
+            document.querySelector('.widget-container').innerHTML = `
+                <div class="error-message">
+                    <p>Failed to load AI Voice Assistant Widget</p>
+                    <p>Please try refreshing the page</p>
+                </div>
+            `;
+        };
+        
+        document.head.appendChild(script);
+        
+        // Post messages to parent frame for communication
+        window.addEventListener('message', function(event) {
+            // Handle messages from parent frame if needed
+            if (event.data.type === 'widget-resize') {
+                // Handle resize requests
+                document.body.style.height = event.data.height + 'px';
+            }
+        });
+        
+        // Send ready message to parent
+        setTimeout(() => {
+            if (window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'widget-ready',
+                    siteId: siteId
+                }, '*');
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
