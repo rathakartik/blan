@@ -59,6 +59,9 @@ app = FastAPI(
     description="Production-ready AI Voice Assistant API with enhanced security"
 )
 
+# Mount static files for widget assets
+app.mount("/static", StaticFiles(directory="/app/backend/static"), name="static")
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
