@@ -168,8 +168,13 @@ async def security_middleware(request: Request, call_next):
     
     return response
 
+# Security middleware class
+class SecurityMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        return await security_middleware(request, call_next)
+
 # Add security middleware
-app.add_middleware(BaseHTTPMiddleware, dispatch=security_middleware)
+app.add_middleware(SecurityMiddleware)
 
 # Initialize MongoDB connection
 try:
