@@ -73,7 +73,7 @@ app.add_middleware(
 )
 
 # ============================================================================
-# SECURITY & RATE LIMITING MIDDLEWARE
+# SECURITY & RATE LIMITING MIDDLEWARE - TEMPORARILY DISABLED FOR DEBUGGING
 # ============================================================================
 
 def get_client_ip(request: Request) -> str:
