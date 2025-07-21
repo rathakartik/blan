@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from starlette.middleware.base import BaseHTTPMiddleware
+# from starlette.middleware.base import BaseHTTPMiddleware  # Temporarily disabled
 from pymongo import MongoClient
 from groq import Groq
 import os
