@@ -11,7 +11,7 @@ from datetime import datetime
 import uuid
 
 # Configuration
-BASE_URL = "https://219fe081-0360-4cd8-8a05-de3ecd86166f.preview.emergentagent.com"
+BASE_URL = "https://40207044-9649-4721-9bbd-ae0b3758a267.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
 def test_core_memory_functionality():
