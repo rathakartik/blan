@@ -9,7 +9,8 @@ import {
   UserIcon,
   Bars3Icon,
   XMarkIcon,
-  ArrowRightOnRectangleIcon
+  ArrowRightOnRectangleIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 
 const DashboardLayout = ({ children }) => {
