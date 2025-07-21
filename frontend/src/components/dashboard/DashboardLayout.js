@@ -21,6 +21,7 @@ const DashboardLayout = ({ children }) => {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+    { name: 'Admin', href: '/dashboard/admin', icon: ShieldCheckIcon },
     { name: 'Sites', href: '/dashboard/sites', icon: GlobeAltIcon },
     { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
     { name: 'Settings', href: '/dashboard/settings', icon: CogIcon },
