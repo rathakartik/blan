@@ -169,10 +169,10 @@ def validate_message_content(message: str) -> bool:
 #     
 #     return response
 
-# Security middleware class
-class SecurityMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        return await security_middleware(request, call_next)
+# Security middleware class - temporarily disabled
+# class SecurityMiddleware(BaseHTTPMiddleware):
+#     async def dispatch(self, request: Request, call_next):
+#         return await security_middleware(request, call_next)
 
 # Add security middleware - temporarily disabled for testing
 # app.add_middleware(SecurityMiddleware)
