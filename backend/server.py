@@ -154,7 +154,7 @@ async def security_middleware(request: Request, call_next):
         
         if is_rate_limited(client_ip, endpoint, max_requests):
             logger.warning(f"Rate limit exceeded for {client_ip} on {endpoint}")
-            return HTTPException(
+            raise HTTPException(
                 status_code=429,
                 detail="Rate limit exceeded. Please try again later."
             )
