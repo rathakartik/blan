@@ -901,15 +901,12 @@ async def get_embed_script(site_id: str, current_user: UserDB = Depends(get_curr
 @app.get("/widget", response_class=HTMLResponse)
 async def widget_page(site_id: str):
     """Serve the widget page for embedding."""
-    if not db_service:
-        raise HTTPException(status_code=500, detail="Database not available")
-    
     try:
-        config = await db_service.get_site_config(site_id)
-        if not config:
-            raise HTTPException(status_code=404, detail="Site not found")
-        
-        # Return widget HTML page
+        # Return the static widget HTML file
+        return FileResponse("/app/backend/static/widget.html")
+    except Exception as e:
+        logger.error(f"Widget page error: {e}")
+        # Fallback HTML
         html_content = f"""
         <!DOCTYPE html>
         <html lang="en">
@@ -917,40 +914,27 @@ async def widget_page(site_id: str):
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>AI Voice Assistant Widget</title>
-            <style>
-                body {{
-                    margin: 0;
-                    padding: 0;
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    background: transparent;
-                }}
-                .widget-container {{
-                    width: 100%;
-                    height: 100vh;
-                    display: flex;
-                    flex-direction: column;
-                }}
-            </style>
         </head>
         <body>
-            <div class="widget-container">
-                <div id="root"></div>
+            <div style="padding: 20px; text-align: center; font-family: system-ui;">
+                <h3>AI Voice Assistant</h3>
+                <p>Loading...</p>
+                <script>
+                    const siteId = "{site_id}";
+                    const backendUrl = window.location.origin;
+                    
+                    // Load widget script
+                    const script = document.createElement('script');
+                    script.src = '/static/widget.js';
+                    script.setAttribute('data-site-id', siteId);
+                    script.setAttribute('data-backend-url', backendUrl);
+                    document.head.appendChild(script);
+                </script>
             </div>
-            <script>
-                window.WIDGET_CONFIG = {json.dumps(config)};
-                window.BACKEND_URL = "{os.getenv('BACKEND_URL', 'http://localhost:8001')}";
-            </script>
-            <script src="/static/widget.js"></script>
         </body>
         </html>
         """
-        
         return HTMLResponse(content=html_content)
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Widget page error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 # Updated analytics endpoint to work with new database
 @app.post("/api/analytics/interaction")
