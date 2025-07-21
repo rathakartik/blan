@@ -57,135 +57,33 @@ def generate_site_id() -> str:
 
 def generate_embed_script(site_id: str, backend_url: str) -> str:
     """Generate embed script for widget."""
-    script = f"""
-<!-- AI Voice Assistant Widget -->
+    script = f"""<!-- AI Voice Assistant Widget -->
 <script>
 (function() {{
-    // Widget configuration
-    const WIDGET_CONFIG = {{
-        siteId: '{site_id}',
-        backendUrl: '{backend_url}',
-        version: '1.0.0'
+    // Prevent multiple loading
+    if (window.aiWidgetLoaded) return;
+    window.aiWidgetLoaded = true;
+    
+    // Create and load the embed script
+    const script = document.createElement('script');
+    script.src = '{backend_url}/static/embed.js';
+    script.setAttribute('data-site-id', '{site_id}');
+    script.setAttribute('data-backend-url', '{backend_url}');
+    script.setAttribute('data-position', 'bottom-right');
+    script.setAttribute('data-theme', 'blue');
+    
+    // Error handling
+    script.onerror = function() {{
+        console.error('Failed to load AI Voice Assistant Widget');
     }};
     
-    // Create widget container
-    const widgetContainer = document.createElement('div');
-    widgetContainer.id = 'ai-voice-widget-container';
-    widgetContainer.setAttribute('data-site-id', WIDGET_CONFIG.siteId);
-    
-    // Widget styles
-    const widgetStyles = document.createElement('style');
-    widgetStyles.textContent = `
-        #ai-voice-widget-container {{
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 9999;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }}
-        
-        .ai-widget-toggle {{
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            color: white;
-        }}
-        
-        .ai-widget-toggle:hover {{
-            transform: scale(1.1);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-        }}
-        
-        .ai-widget-frame {{
-            display: none;
-            position: absolute;
-            bottom: 80px;
-            right: 0;
-            width: 350px;
-            height: 500px;
-            border: none;
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            background: white;
-            overflow: hidden;
-            animation: slideUp 0.3s ease-out;
-        }}
-        
-        @keyframes slideUp {{
-            from {{
-                opacity: 0;
-                transform: translateY(20px);
-            }}
-            to {{
-                opacity: 1;
-                transform: translateY(0);
-            }}
-        }}
-        
-        @media (max-width: 480px) {{
-            .ai-widget-frame {{
-                width: 300px;
-                height: 450px;
-            }}
-        }}
-    `;
-    
-    // Widget HTML
-    widgetContainer.innerHTML = `
-        <button class="ai-widget-toggle" onclick="toggleWidget()">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-        </button>
-        <iframe id="ai-widget-frame" class="ai-widget-frame" src="{backend_url}/widget?site_id={site_id}"></iframe>
-    `;
-    
-    // Toggle function
-    window.toggleWidget = function() {{
-        const frame = document.getElementById('ai-widget-frame');
-        if (frame.style.display === 'none' || frame.style.display === '') {{
-            frame.style.display = 'block';
-            // Log widget open
-            fetch(`${{WIDGET_CONFIG.backendUrl}}/api/analytics/interaction`, {{
-                method: 'POST',
-                headers: {{ 'Content-Type': 'application/json' }},
-                body: JSON.stringify({{
-                    site_id: WIDGET_CONFIG.siteId,
-                    session_id: 'embed-session',
-                    type: 'widget_open'
-                }})
-            }}).catch(console.error);
-        }} else {{
-            frame.style.display = 'none';
-            // Log widget close
-            fetch(`${{WIDGET_CONFIG.backendUrl}}/api/analytics/interaction`, {{
-                method: 'POST',
-                headers: {{ 'Content-Type': 'application/json' }},
-                body: JSON.stringify({{
-                    site_id: WIDGET_CONFIG.siteId,
-                    session_id: 'embed-session',
-                    type: 'widget_close'
-                }})
-            }}).catch(console.error);
-        }}
+    script.onload = function() {{
+        console.log('AI Voice Assistant Widget loaded successfully');
     }};
     
-    // Initialize widget
-    document.head.appendChild(widgetStyles);
-    document.body.appendChild(widgetContainer);
-    
-    console.log('AI Voice Assistant Widget loaded successfully');
+    document.head.appendChild(script);
 }})();
-</script>
-"""
+</script>"""
     return script.strip()
 
 def get_installation_instructions(site_id: str) -> str:
