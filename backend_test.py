@@ -1412,6 +1412,721 @@ def test_complete_dashboard_flow():
     print("\n🎉 Complete dashboard flow test passed!")
     return True
 
+def test_widget_endpoint():
+    """Test the widget HTML endpoint"""
+    print_test_header("Widget HTML Endpoint - GET /widget")
+    
+    test_cases = [
+        {
+            "name": "Widget with site_id parameter",
+            "url": f"{BASE_URL}/widget?site_id=test-site",
+            "expected_status": 200
+        },
+        {
+            "name": "Widget with demo site_id",
+            "url": f"{BASE_URL}/widget?site_id=demo",
+            "expected_status": 200
+        },
+        {
+            "name": "Widget without site_id parameter",
+            "url": f"{BASE_URL}/widget",
+            "expected_status": 200  # Should still work with fallback
+        }
+    ]
+    
+    all_passed = True
+    
+    for test_case in test_cases:
+        print(f"\n--- Testing: {test_case['name']} ---")
+        
+        try:
+            response = requests.get(test_case["url"], timeout=10)
+            
+            print(f"Status Code: {response.status_code} (Expected: {test_case['expected_status']})")
+            
+            if response.status_code == test_case["expected_status"]:
+                # Check if response is HTML
+                content_type = response.headers.get('content-type', '')
+                if 'html' in content_type.lower():
+                    print("✅ Response is HTML content")
+                else:
+                    print(f"⚠️ Content-Type: {content_type} (may not be HTML)")
+                
+                # Check for basic HTML structure
+                html_content = response.text
+                if '<html' in html_content and '</html>' in html_content:
+                    print("✅ Valid HTML structure detected")
+                else:
+                    print("❌ Invalid HTML structure")
+                    all_passed = False
+                
+                # Check for widget-related content
+                widget_indicators = ['widget', 'assistant', 'script', 'site_id']
+                found_indicators = [indicator for indicator in widget_indicators if indicator.lower() in html_content.lower()]
+                
+                if found_indicators:
+                    print(f"✅ Widget-related content found: {found_indicators}")
+                else:
+                    print("❌ No widget-related content found")
+                    all_passed = False
+                    
+            else:
+                print(f"❌ Expected status {test_case['expected_status']}, got {response.status_code}")
+                all_passed = False
+                
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Request failed: {e}")
+            all_passed = False
+    
+    return all_passed
+
+def test_static_file_serving():
+    """Test static file serving for widget assets"""
+    print_test_header("Static File Serving - /static/")
+    
+    static_files = [
+        {
+            "name": "Widget JavaScript",
+            "url": f"{BASE_URL}/static/widget.js",
+            "content_type": "javascript"
+        },
+        {
+            "name": "Embed JavaScript", 
+            "url": f"{BASE_URL}/static/embed.js",
+            "content_type": "javascript"
+        },
+        {
+            "name": "Widget HTML",
+            "url": f"{BASE_URL}/static/widget.html",
+            "content_type": "html"
+        }
+    ]
+    
+    all_passed = True
+    
+    for file_test in static_files:
+        print(f"\n--- Testing: {file_test['name']} ---")
+        
+        try:
+            response = requests.get(file_test["url"], timeout=10)
+            
+            print(f"URL: {file_test['url']}")
+            print(f"Status Code: {response.status_code}")
+            
+            if response.status_code == 200:
+                print("✅ File accessible")
+                
+                # Check content type
+                content_type = response.headers.get('content-type', '')
+                print(f"Content-Type: {content_type}")
+                
+                # Check file size
+                content_length = len(response.content)
+                print(f"Content Length: {content_length} bytes")
+                
+                if content_length > 0:
+                    print("✅ File has content")
+                else:
+                    print("❌ File is empty")
+                    all_passed = False
+                    
+                # Check for expected content based on file type
+                content = response.text
+                if file_test["content_type"] == "javascript":
+                    if any(js_indicator in content for js_indicator in ['function', 'var', 'const', 'let', '{']):
+                        print("✅ JavaScript content detected")
+                    else:
+                        print("⚠️ May not contain JavaScript code")
+                elif file_test["content_type"] == "html":
+                    if '<html' in content and '</html>' in content:
+                        print("✅ HTML content detected")
+                    else:
+                        print("⚠️ May not contain valid HTML")
+                        
+            elif response.status_code == 404:
+                print("❌ File not found (404)")
+                all_passed = False
+            else:
+                print(f"❌ Unexpected status code: {response.status_code}")
+                all_passed = False
+                
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Request failed: {e}")
+            all_passed = False
+    
+    return all_passed
+
+def test_embed_script_generation():
+    """Test embed script generation endpoint"""
+    print_test_header("Embed Script Generation - GET /api/sites/{site_id}/embed")
+    
+    # First, we need to create a user and site to test with
+    print("Setting up test user and site...")
+    
+    # Register test user
+    test_email = f"embed_test_{int(time.time())}@example.com"
+    register_response = requests.post(
+        f"{API_BASE}/auth/register",
+        json={
+            "email": test_email,
+            "full_name": "Embed Test User",
+            "password": "testpassword123"
+        },
+        headers={"Content-Type": "application/json"},
+        timeout=10
+    )
+    
+    if register_response.status_code != 200:
+        print("❌ Failed to create test user for embed script test")
+        return False
+    
+    # Login test user
+    login_response = requests.post(
+        f"{API_BASE}/auth/login",
+        json={
+            "email": test_email,
+            "password": "testpassword123"
+        },
+        headers={"Content-Type": "application/json"},
+        timeout=10
+    )
+    
+    if login_response.status_code != 200:
+        print("❌ Failed to login test user for embed script test")
+        return False
+    
+    access_token = login_response.json().get("access_token")
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {access_token}"
+    }
+    
+    # Create test site
+    site_response = requests.post(
+        f"{API_BASE}/sites",
+        json={
+            "name": "Embed Test Site",
+            "domain": f"embed-test-{int(time.time())}.com",
+            "description": "Test site for embed script generation"
+        },
+        headers=headers,
+        timeout=10
+    )
+    
+    if site_response.status_code != 200:
+        print("❌ Failed to create test site for embed script test")
+        return False
+    
+    site_id = site_response.json().get("id")
+    print(f"✅ Test site created with ID: {site_id}")
+    
+    # Now test embed script generation
+    all_passed = True
+    
+    try:
+        embed_response = requests.get(
+            f"{API_BASE}/sites/{site_id}/embed",
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=10
+        )
+        
+        print_result(f"/api/sites/{site_id}/embed", embed_response.status_code, embed_response.json() if embed_response.content else {})
+        
+        if embed_response.status_code == 200:
+            data = embed_response.json()
+            
+            # Check required fields
+            required_fields = ["site_id", "script_content", "installation_instructions"]
+            missing_fields = [field for field in required_fields if field not in data]
+            
+            if missing_fields:
+                print(f"❌ Missing required fields: {missing_fields}")
+                all_passed = False
+            else:
+                print("✅ All required fields present")
+                
+            # Verify site_id matches
+            if data.get("site_id") == site_id:
+                print("✅ Site ID matches request")
+            else:
+                print(f"❌ Site ID mismatch: expected {site_id}, got {data.get('site_id')}")
+                all_passed = False
+                
+            # Check script content
+            script_content = data.get("script_content", "")
+            if script_content and len(script_content) > 0:
+                print("✅ Script content is not empty")
+                
+                # Check for essential script elements
+                script_indicators = ['<script', 'src=', 'data-site-id', site_id]
+                found_indicators = [indicator for indicator in script_indicators if indicator in script_content]
+                
+                if len(found_indicators) >= 3:
+                    print(f"✅ Script contains essential elements: {found_indicators}")
+                else:
+                    print(f"⚠️ Script may be missing some elements. Found: {found_indicators}")
+                    
+            else:
+                print("❌ Script content is empty")
+                all_passed = False
+                
+            # Check installation instructions
+            instructions = data.get("installation_instructions", "")
+            if instructions and len(instructions) > 0:
+                print("✅ Installation instructions provided")
+            else:
+                print("❌ Installation instructions are empty")
+                all_passed = False
+                
+        else:
+            print(f"❌ Expected status 200, got {embed_response.status_code}")
+            all_passed = False
+            
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Request failed: {e}")
+        all_passed = False
+    except json.JSONDecodeError as e:
+        print(f"❌ Invalid JSON response: {e}")
+        all_passed = False
+    
+    return all_passed
+
+def test_cors_configuration():
+    """Test CORS configuration for embedded widgets"""
+    print_test_header("CORS Configuration Test")
+    
+    # Test CORS headers on key endpoints
+    endpoints_to_test = [
+        f"{API_BASE}/chat",
+        f"{API_BASE}/widget/config", 
+        f"{API_BASE}/analytics/interaction",
+        f"{BASE_URL}/widget"
+    ]
+    
+    all_passed = True
+    
+    for endpoint in endpoints_to_test:
+        print(f"\n--- Testing CORS for: {endpoint} ---")
+        
+        try:
+            # Test preflight request (OPTIONS)
+            options_response = requests.options(
+                endpoint,
+                headers={
+                    "Origin": "https://example.com",
+                    "Access-Control-Request-Method": "POST",
+                    "Access-Control-Request-Headers": "Content-Type"
+                },
+                timeout=10
+            )
+            
+            print(f"OPTIONS Status: {options_response.status_code}")
+            
+            # Check CORS headers
+            cors_headers = {
+                "Access-Control-Allow-Origin": options_response.headers.get("Access-Control-Allow-Origin"),
+                "Access-Control-Allow-Methods": options_response.headers.get("Access-Control-Allow-Methods"),
+                "Access-Control-Allow-Headers": options_response.headers.get("Access-Control-Allow-Headers"),
+                "Access-Control-Allow-Credentials": options_response.headers.get("Access-Control-Allow-Credentials")
+            }
+            
+            print("CORS Headers:")
+            for header, value in cors_headers.items():
+                print(f"  {header}: {value}")
+            
+            # Check if CORS is properly configured
+            allow_origin = cors_headers.get("Access-Control-Allow-Origin")
+            if allow_origin == "*" or allow_origin == "https://example.com":
+                print("✅ CORS Allow-Origin configured")
+            else:
+                print(f"⚠️ CORS Allow-Origin may not be configured for cross-origin requests: {allow_origin}")
+                
+            allow_methods = cors_headers.get("Access-Control-Allow-Methods")
+            if allow_methods and ("POST" in allow_methods or "*" in allow_methods):
+                print("✅ CORS Allow-Methods includes POST")
+            else:
+                print(f"⚠️ CORS Allow-Methods may not include POST: {allow_methods}")
+                
+        except requests.exceptions.RequestException as e:
+            print(f"❌ CORS test failed: {e}")
+            all_passed = False
+    
+    return all_passed
+
+def test_rate_limiting():
+    """Test rate limiting doesn't break widget functionality"""
+    print_test_header("Rate Limiting Test")
+    
+    # Test normal usage doesn't hit rate limits
+    print("--- Testing Normal Usage Rate Limits ---")
+    
+    session_id = f"rate-test-{uuid.uuid4()}"
+    site_id = "demo"
+    
+    # Send multiple requests within normal usage patterns
+    normal_requests = 5
+    all_passed = True
+    
+    for i in range(normal_requests):
+        try:
+            response = requests.post(
+                f"{API_BASE}/chat",
+                json={
+                    "message": f"Test message {i+1}",
+                    "session_id": session_id,
+                    "site_id": site_id
+                },
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                print(f"✅ Request {i+1}: Success")
+            elif response.status_code == 429:
+                print(f"❌ Request {i+1}: Rate limited (429) - this shouldn't happen for normal usage")
+                all_passed = False
+            else:
+                print(f"⚠️ Request {i+1}: Status {response.status_code}")
+                
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Request {i+1} failed: {e}")
+            all_passed = False
+        
+        # Small delay between requests
+        time.sleep(0.2)
+    
+    # Test widget config rate limiting
+    print("\n--- Testing Widget Config Rate Limits ---")
+    
+    for i in range(3):
+        try:
+            response = requests.post(
+                f"{API_BASE}/widget/config",
+                json={"site_id": "demo"},
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                print(f"✅ Widget config request {i+1}: Success")
+            elif response.status_code == 429:
+                print(f"❌ Widget config request {i+1}: Rate limited (429)")
+                all_passed = False
+            else:
+                print(f"⚠️ Widget config request {i+1}: Status {response.status_code}")
+                
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Widget config request {i+1} failed: {e}")
+            all_passed = False
+        
+        time.sleep(0.1)
+    
+    return all_passed
+
+def test_multi_site_support():
+    """Test different site IDs get different configurations"""
+    print_test_header("Multi-Site Support Test")
+    
+    test_sites = [
+        {"site_id": "demo", "name": "Demo Site"},
+        {"site_id": "test-site-1", "name": "Test Site 1"},
+        {"site_id": "test-site-2", "name": "Test Site 2"},
+        {"site_id": "custom-site", "name": "Custom Site"}
+    ]
+    
+    all_passed = True
+    site_configs = {}
+    
+    for site in test_sites:
+        site_id = site["site_id"]
+        print(f"\n--- Testing Site: {site['name']} ({site_id}) ---")
+        
+        try:
+            # Get widget configuration for this site
+            config_response = requests.post(
+                f"{API_BASE}/widget/config",
+                json={"site_id": site_id},
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            
+            if config_response.status_code == 200:
+                config_data = config_response.json()
+                site_configs[site_id] = config_data
+                
+                print(f"✅ Configuration retrieved for {site_id}")
+                print(f"   Bot Name: {config_data.get('bot_name', 'N/A')}")
+                print(f"   Greeting: {config_data.get('greeting_message', 'N/A')[:50]}...")
+                print(f"   Theme Primary: {config_data.get('theme', {}).get('primary_color', 'N/A')}")
+                
+                # Verify site_id is correctly returned
+                if config_data.get("site_id") == site_id:
+                    print(f"✅ Site ID correctly returned: {site_id}")
+                else:
+                    print(f"❌ Site ID mismatch: expected {site_id}, got {config_data.get('site_id')}")
+                    all_passed = False
+                    
+            else:
+                print(f"❌ Failed to get configuration for {site_id}: Status {config_response.status_code}")
+                all_passed = False
+                
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Request failed for {site_id}: {e}")
+            all_passed = False
+    
+    # Test chat with different sites
+    print(f"\n--- Testing Chat with Different Sites ---")
+    
+    for site in test_sites[:2]:  # Test first 2 sites for chat
+        site_id = site["site_id"]
+        session_id = f"multisite-{site_id}-{uuid.uuid4()}"
+        
+        try:
+            chat_response = requests.post(
+                f"{API_BASE}/chat",
+                json={
+                    "message": f"Hello from {site['name']}",
+                    "session_id": session_id,
+                    "site_id": site_id
+                },
+                headers={"Content-Type": "application/json"},
+                timeout=15
+            )
+            
+            if chat_response.status_code == 200:
+                chat_data = chat_response.json()
+                print(f"✅ Chat working for {site_id}")
+                print(f"   Response: {chat_data.get('response', '')[:50]}...")
+                
+                # Verify session isolation between sites
+                if chat_data.get("session_id") == session_id:
+                    print(f"✅ Session isolation working for {site_id}")
+                else:
+                    print(f"❌ Session ID issue for {site_id}")
+                    all_passed = False
+                    
+            else:
+                print(f"❌ Chat failed for {site_id}: Status {chat_response.status_code}")
+                all_passed = False
+                
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Chat request failed for {site_id}: {e}")
+            all_passed = False
+    
+    # Verify configurations are different (or at least properly handled)
+    print(f"\n--- Verifying Site Configuration Differences ---")
+    
+    if len(site_configs) >= 2:
+        site_ids = list(site_configs.keys())
+        config1 = site_configs[site_ids[0]]
+        config2 = site_configs[site_ids[1]]
+        
+        # Check if configurations have the expected structure
+        if config1.get("site_id") != config2.get("site_id"):
+            print("✅ Different sites have different site_id values")
+        else:
+            print("❌ Site configurations should have different site_id values")
+            all_passed = False
+            
+        # All sites should have the required configuration structure
+        required_fields = ["site_id", "greeting_message", "bot_name", "theme"]
+        for site_id, config in site_configs.items():
+            missing_fields = [field for field in required_fields if field not in config]
+            if missing_fields:
+                print(f"❌ Site {site_id} missing fields: {missing_fields}")
+                all_passed = False
+            else:
+                print(f"✅ Site {site_id} has complete configuration")
+    
+    return all_passed
+
+def test_visitor_tracking():
+    """Test visitor ID persistence for external embeds"""
+    print_test_header("Visitor Tracking Test")
+    
+    # Generate unique visitor ID
+    visitor_id = f"visitor-{uuid.uuid4()}"
+    site_id = "demo"
+    
+    print(f"Testing with visitor_id: {visitor_id}")
+    
+    all_passed = True
+    
+    # Test 1: First visit with visitor ID
+    print(f"\n--- Test 1: First Visit with Visitor ID ---")
+    
+    session_id_1 = f"session-1-{uuid.uuid4()}"
+    
+    try:
+        response = requests.post(
+            f"{API_BASE}/chat",
+            json={
+                "message": "Hello, I'm a new visitor",
+                "session_id": session_id_1,
+                "site_id": site_id,
+                "visitor_id": visitor_id
+            },
+            headers={"Content-Type": "application/json"},
+            timeout=15
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            print("✅ First visit successful")
+            
+            # Verify visitor ID is returned
+            if data.get("visitor_id") == visitor_id:
+                print("✅ Visitor ID correctly returned")
+            else:
+                print(f"❌ Visitor ID mismatch: expected {visitor_id}, got {data.get('visitor_id')}")
+                all_passed = False
+                
+            # Should be identified as new visitor
+            if data.get("is_returning_visitor") == False:
+                print("✅ Correctly identified as new visitor")
+            else:
+                print(f"❌ Should be new visitor, got: {data.get('is_returning_visitor')}")
+                all_passed = False
+                
+        else:
+            print(f"❌ First visit failed: Status {response.status_code}")
+            all_passed = False
+            
+    except Exception as e:
+        print(f"❌ First visit test failed: {e}")
+        all_passed = False
+    
+    # Test 2: Same visitor, different session
+    print(f"\n--- Test 2: Same Visitor, Different Session ---")
+    
+    session_id_2 = f"session-2-{uuid.uuid4()}"
+    
+    # Wait a moment to ensure different timestamps
+    time.sleep(1)
+    
+    try:
+        response = requests.post(
+            f"{API_BASE}/chat",
+            json={
+                "message": "Hello again, I'm back",
+                "session_id": session_id_2,
+                "site_id": site_id,
+                "visitor_id": visitor_id
+            },
+            headers={"Content-Type": "application/json"},
+            timeout=15
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            print("✅ Return visit successful")
+            
+            # Verify visitor ID persistence
+            if data.get("visitor_id") == visitor_id:
+                print("✅ Visitor ID persisted across sessions")
+            else:
+                print(f"❌ Visitor ID not persisted: expected {visitor_id}, got {data.get('visitor_id')}")
+                all_passed = False
+                
+            # Should be identified as returning visitor
+            if data.get("is_returning_visitor") == True:
+                print("✅ Correctly identified as returning visitor")
+            else:
+                print(f"❌ Should be returning visitor, got: {data.get('is_returning_visitor')}")
+                all_passed = False
+                
+            # Session should be isolated (conversation length = 1)
+            if data.get("conversation_length") == 1:
+                print("✅ Session isolation maintained")
+            else:
+                print(f"⚠️ Session isolation: expected length 1, got {data.get('conversation_length')}")
+                
+        else:
+            print(f"❌ Return visit failed: Status {response.status_code}")
+            all_passed = False
+            
+    except Exception as e:
+        print(f"❌ Return visit test failed: {e}")
+        all_passed = False
+    
+    # Test 3: Analytics tracking with visitor ID
+    print(f"\n--- Test 3: Analytics Tracking with Visitor ID ---")
+    
+    try:
+        analytics_response = requests.post(
+            f"{API_BASE}/analytics/interaction",
+            json={
+                "site_id": site_id,
+                "session_id": session_id_2,
+                "type": "widget_open",
+                "visitor_id": visitor_id
+            },
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        
+        if analytics_response.status_code == 200:
+            analytics_data = analytics_response.json()
+            if analytics_data.get("status") == "logged":
+                print("✅ Analytics tracking with visitor ID successful")
+            else:
+                print(f"❌ Analytics tracking failed: {analytics_data}")
+                all_passed = False
+        else:
+            print(f"❌ Analytics tracking failed: Status {analytics_response.status_code}")
+            all_passed = False
+            
+    except Exception as e:
+        print(f"❌ Analytics tracking test failed: {e}")
+        all_passed = False
+    
+    # Test 4: Different visitor isolation
+    print(f"\n--- Test 4: Different Visitor Isolation ---")
+    
+    different_visitor_id = f"visitor-{uuid.uuid4()}"
+    different_session_id = f"session-{uuid.uuid4()}"
+    
+    try:
+        response = requests.post(
+            f"{API_BASE}/chat",
+            json={
+                "message": "Hello, I'm a different visitor",
+                "session_id": different_session_id,
+                "site_id": site_id,
+                "visitor_id": different_visitor_id
+            },
+            headers={"Content-Type": "application/json"},
+            timeout=15
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            print("✅ Different visitor test successful")
+            
+            # Should be treated as new visitor
+            if data.get("is_returning_visitor") == False:
+                print("✅ Different visitor correctly treated as new")
+            else:
+                print(f"❌ Different visitor should be new, got: {data.get('is_returning_visitor')}")
+                all_passed = False
+                
+            # Visitor ID should match
+            if data.get("visitor_id") == different_visitor_id:
+                print("✅ Different visitor ID correctly handled")
+            else:
+                print(f"❌ Visitor ID mismatch: expected {different_visitor_id}, got {data.get('visitor_id')}")
+                all_passed = False
+                
+        else:
+            print(f"❌ Different visitor test failed: Status {response.status_code}")
+            all_passed = False
+            
+    except Exception as e:
+        print(f"❌ Different visitor test failed: {e}")
+        all_passed = False
+    
+    return all_passed
+
 def main():
     """Run all backend API tests"""
     print("🚀 Starting AI Voice Assistant Backend API Tests")
@@ -1431,6 +2146,19 @@ def main():
     test_results["analytics"] = test_analytics_endpoint()
     test_results["conversation_flow"] = test_conversation_flow()
     test_results["enhanced_conversation_memory"] = test_enhanced_conversation_memory()
+    
+    # Run EMBEDDABLE WIDGET SYSTEM TESTS (New)
+    print("\n" + "="*60)
+    print("EMBEDDABLE WIDGET SYSTEM TESTS")
+    print("="*60)
+    
+    test_results["widget_endpoint"] = test_widget_endpoint()
+    test_results["static_file_serving"] = test_static_file_serving()
+    test_results["embed_script_generation"] = test_embed_script_generation()
+    test_results["cors_configuration"] = test_cors_configuration()
+    test_results["rate_limiting"] = test_rate_limiting()
+    test_results["multi_site_support"] = test_multi_site_support()
+    test_results["visitor_tracking"] = test_visitor_tracking()
     
     # Run 90-Day Memory Functionality Tests
     print("\n" + "="*60)
