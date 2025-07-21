@@ -187,7 +187,7 @@ const SiteAnalytics = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-gray-900">Daily Activity</h2>
-              <TrendingUpIcon className="h-5 w-5 text-gray-400" />
+              <ArrowTrendingUpIcon className="h-5 w-5 text-gray-400" />
             </div>
             
             <div className="space-y-4">
