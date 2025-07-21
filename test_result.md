@@ -304,9 +304,13 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Core AI Chat Endpoint - POST /api/chat"
-    - "Widget Configuration API - POST /api/widget/config"
-    - "Analytics Interaction Logging - POST /api/analytics/interaction"
+    - "Widget HTML Endpoint - GET /widget"
+    - "Static File Serving - /static/ assets"
+    - "Embed Script Generation - GET /api/sites/{site_id}/embed"
+    - "CORS Configuration for Embedded Widgets"
+    - "Multi-Site Support and Configuration"
+    - "Visitor Tracking and Session Management"
+    - "Rate Limiting for Widget Functionality"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
