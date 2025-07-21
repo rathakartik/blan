@@ -7,7 +7,7 @@ import {
   ChatBubbleLeftRightIcon,
   MicrophoneIcon,
   ClockIcon,
-  TrendingUpIcon,
+  ArrowTrendingUpIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 
