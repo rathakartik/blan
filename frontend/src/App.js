@@ -33,6 +33,14 @@ function App() {
             </ProtectedRoute>
           } />
           
+          <Route path="/dashboard/admin" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <AdminDashboard />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } />
+          
           <Route path="/dashboard/sites" element={
             <ProtectedRoute>
               <DashboardLayout>
@@ -53,6 +61,22 @@ function App() {
             <ProtectedRoute>
               <DashboardLayout>
                 <SiteForm />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/dashboard/sites/:id/embed" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <EmbedCode />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/dashboard/sites/:id/analytics" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <SiteAnalytics />
               </DashboardLayout>
             </ProtectedRoute>
           } />
