@@ -141,32 +141,33 @@ def validate_message_content(message: str) -> bool:
     
     return True
 
-async def security_middleware(request: Request, call_next):
-    """Security middleware for request validation"""
-    start_time = time.time()
-    
-    # Get client IP
-    client_ip = get_client_ip(request)
-    
-    # Check rate limiting for API endpoints
-    if request.url.path.startswith("/api/"):
-        endpoint = request.url.path
-        max_requests = MAX_CHAT_REQUESTS_PER_MINUTE if "/chat" in endpoint else MAX_REQUESTS_PER_MINUTE
-        
-        if is_rate_limited(client_ip, endpoint, max_requests):
-            logger.warning(f"Rate limit exceeded for {client_ip} on {endpoint}")
-            raise HTTPException(
-                status_code=429,
-                detail="Rate limit exceeded. Please try again later."
-            )
-    
-    response = await call_next(request)
-    
-    # Log request
-    process_time = time.time() - start_time
-    logger.info(f"{client_ip} - {request.method} {request.url.path} - {response.status_code} - {process_time:.3f}s")
-    
-    return response
+# Security middleware - temporarily disabled
+# async def security_middleware(request: Request, call_next):
+#     """Security middleware for request validation"""
+#     start_time = time.time()
+#     
+#     # Get client IP
+#     client_ip = get_client_ip(request)
+#     
+#     # Check rate limiting for API endpoints
+#     if request.url.path.startswith("/api/"):
+#         endpoint = request.url.path
+#         max_requests = MAX_CHAT_REQUESTS_PER_MINUTE if "/chat" in endpoint else MAX_REQUESTS_PER_MINUTE
+#         
+#         if is_rate_limited(client_ip, endpoint, max_requests):
+#             logger.warning(f"Rate limit exceeded for {client_ip} on {endpoint}")
+#             raise HTTPException(
+#                 status_code=429,
+#                 detail="Rate limit exceeded. Please try again later."
+#             )
+#     
+#     response = await call_next(request)
+#     
+#     # Log request
+#     process_time = time.time() - start_time
+#     logger.info(f"{client_ip} - {request.method} {request.url.path} - {response.status_code} - {process_time:.3f}s")
+#     
+#     return response
 
 # Security middleware class
 class SecurityMiddleware(BaseHTTPMiddleware):
