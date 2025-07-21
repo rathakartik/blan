@@ -2211,6 +2211,18 @@ def main():
     
     print(f"  Phase 1 Result: {phase1_passed}/{len(phase1_tests)} tests passed")
     
+    # Embeddable Widget System results
+    print("\nEmbeddable Widget System:")
+    widget_tests = ["widget_endpoint", "static_file_serving", "embed_script_generation", "cors_configuration", "rate_limiting", "multi_site_support", "visitor_tracking"]
+    widget_passed = sum(1 for test in widget_tests if test_results.get(test, False))
+    
+    for test_name in widget_tests:
+        result = test_results.get(test_name, False)
+        status = "✅ PASSED" if result else "❌ FAILED"
+        print(f"  {test_name.upper().replace('_', ' ')}: {status}")
+    
+    print(f"  Widget System Result: {widget_passed}/{len(widget_tests)} tests passed")
+    
     # 90-Day Memory results
     print("\n90-Day Memory Functionality:")
     memory_tests = ["90_day_memory"]
