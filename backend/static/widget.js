@@ -262,9 +262,13 @@
                 inputForm: container.querySelector('#ai-widget-input-form'),
                 voiceBtn: container.querySelector('#ai-widget-voice-btn'),
                 stopBtn: container.querySelector('#ai-widget-stop-btn'),
+                micStatus: container.querySelector('#ai-widget-mic-status'),
                 chatIcon: container.querySelector('.ai-widget-chat-icon'),
                 closeIcon: container.querySelector('.ai-widget-close-icon')
             };
+            
+            // Initialize microphone status
+            this.checkMicrophoneStatus();
         }
         
         injectStyles() {
