@@ -82,6 +82,14 @@ function App() {
             </ProtectedRoute>
           } />
           
+          <Route path="/dashboard/sites/:id/roi" element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <ROIDashboard />
+              </DashboardLayout>
+            </ProtectedRoute>
+          } />
+          
           {/* Redirect unknown routes to dashboard for authenticated users, otherwise to home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
