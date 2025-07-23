@@ -112,12 +112,14 @@ const VoiceWidget = ({ config = {} }) => {
 
   // IMMEDIATE auto-voice greeting on page load (without requiring widget to be opened)
   useEffect(() => {
+    let enableAutoVoice; // Declare function variable
+
     if (widgetConfig.auto_greet && widgetConfig.voice_enabled && !hasGreeted && synthesisRef.current) {
       const immediateVoiceTimer = setTimeout(() => {
         console.log('🔊 Starting immediate auto-voice greeting on page load...');
         
         // Create a user interaction handler to enable autoplay
-        const enableAutoVoice = () => {
+        enableAutoVoice = () => {
           if (widgetConfig.voice_enabled && synthesisRef.current && !hasGreeted) {
             speakMessage(widgetConfig.greeting_message);
             setHasGreeted(true);
@@ -147,9 +149,11 @@ const VoiceWidget = ({ config = {} }) => {
 
       return () => {
         clearTimeout(immediateVoiceTimer);
-        document.removeEventListener('click', enableAutoVoice);
-        document.removeEventListener('scroll', enableAutoVoice);
-        document.removeEventListener('keydown', enableAutoVoice);
+        if (enableAutoVoice) {
+          document.removeEventListener('click', enableAutoVoice);
+          document.removeEventListener('scroll', enableAutoVoice);
+          document.removeEventListener('keydown', enableAutoVoice);
+        }
       };
     }
   }, [widgetConfig.auto_greet, widgetConfig.voice_enabled, widgetConfig.greeting_message, hasGreeted]);
