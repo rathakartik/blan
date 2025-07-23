@@ -51,6 +51,30 @@ class DatabaseService:
             self.conversations.create_index("session_id")
             self.conversations.create_index("timestamp")
             
+            # Website Intelligence indexes
+            self.site_intelligence.create_index("site_id", unique=True)
+            self.site_intelligence.create_index("domain")
+            self.site_intelligence.create_index("last_crawl")
+            
+            # User Journeys indexes
+            self.user_journeys.create_index("visitor_id")
+            self.user_journeys.create_index("session_id")
+            self.user_journeys.create_index("site_id")
+            self.user_journeys.create_index([("site_id", 1), ("timestamp", -1)])
+            
+            # Intent Analysis indexes
+            self.intent_analysis.create_index("site_id")
+            self.intent_analysis.create_index("intent_type")
+            self.intent_analysis.create_index("timestamp")
+            
+            # Navigation Suggestions indexes
+            self.navigation_suggestions.create_index("site_id")
+            self.navigation_suggestions.create_index("current_page")
+            
+            # ROI Reports indexes
+            self.roi_reports.create_index("site_id")
+            self.roi_reports.create_index([("site_id", 1), ("period_start", -1)])
+            
             logger.info("Database indexes created successfully")
         except Exception as e:
             logger.error(f"Error creating indexes: {e}")
