@@ -874,7 +874,12 @@
         }
         
         speak(text) {
-            if (!this.synthesis) return;
+            if (!this.synthesis) {
+                console.warn('🔊 Speech synthesis not available');
+                return;
+            }
+            
+            console.log('🔊 Speaking text:', text);
             
             this.synthesis.cancel();
             
@@ -884,9 +889,20 @@
             utterance.pitch = 1.0;
             utterance.volume = 1.0;
             
-            utterance.onstart = () => this.setSpeaking(true);
-            utterance.onend = () => this.setSpeaking(false);
-            utterance.onerror = () => this.setSpeaking(false);
+            utterance.onstart = () => {
+                console.log('🔊 Speech started');
+                this.setSpeaking(true);
+            };
+            
+            utterance.onend = () => {
+                console.log('🔊 Speech ended');
+                this.setSpeaking(false);
+            };
+            
+            utterance.onerror = (event) => {
+                console.error('🔊 Speech error:', event.error);
+                this.setSpeaking(false);
+            };
             
             this.synthesis.speak(utterance);
         }
