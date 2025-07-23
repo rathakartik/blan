@@ -110,6 +110,50 @@ const VoiceWidget = ({ config = {} }) => {
     }
   }, [widgetConfig.auto_greet, widgetConfig.voice_enabled, widgetConfig.greeting_message, hasGreeted, isOpen]);
 
+  // IMMEDIATE auto-voice greeting on page load (without requiring widget to be opened)
+  useEffect(() => {
+    if (widgetConfig.auto_greet && widgetConfig.voice_enabled && !hasGreeted && synthesisRef.current) {
+      const immediateVoiceTimer = setTimeout(() => {
+        console.log('🔊 Starting immediate auto-voice greeting on page load...');
+        
+        // Create a user interaction handler to enable autoplay
+        const enableAutoVoice = () => {
+          if (widgetConfig.voice_enabled && synthesisRef.current && !hasGreeted) {
+            speakMessage(widgetConfig.greeting_message);
+            setHasGreeted(true);
+            logInteraction('immediate_voice_greeting');
+            console.log('✅ Immediate voice greeting activated');
+          }
+          // Remove the event listener after first use
+          document.removeEventListener('click', enableAutoVoice);
+          document.removeEventListener('scroll', enableAutoVoice);
+          document.removeEventListener('keydown', enableAutoVoice);
+        };
+
+        // Try immediate voice (may be blocked by browser autoplay policy)
+        try {
+          speakMessage(widgetConfig.greeting_message);
+          setHasGreeted(true);
+          logInteraction('immediate_voice_greeting');
+          console.log('✅ Immediate voice greeting started successfully');
+        } catch (error) {
+          console.log('⚠️ Immediate voice blocked by browser, waiting for user interaction');
+          // Fallback: Wait for any user interaction to start voice
+          document.addEventListener('click', enableAutoVoice, { once: true });
+          document.addEventListener('scroll', enableAutoVoice, { once: true });
+          document.addEventListener('keydown', enableAutoVoice, { once: true });
+        }
+      }, 2000); // 2 second delay to allow page to fully load
+
+      return () => {
+        clearTimeout(immediateVoiceTimer);
+        document.removeEventListener('click', enableAutoVoice);
+        document.removeEventListener('scroll', enableAutoVoice);
+        document.removeEventListener('keydown', enableAutoVoice);
+      };
+    }
+  }, [widgetConfig.auto_greet, widgetConfig.voice_enabled, widgetConfig.greeting_message, hasGreeted]);
+
   // Widget initialization - ensure immediate setup
   useEffect(() => {
     console.log('Widget initialized with session:', sessionId);
