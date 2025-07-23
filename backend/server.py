@@ -1082,7 +1082,7 @@ def extract_topics_from_messages(messages: List[str]) -> List[str]:
     return topics
 
 async def enhance_ai_context_with_memory(message: str, site_config: Dict[str, Any], visitor_context: Dict[str, Any]) -> str:
-    """Enhance AI context with website-specific information and visitor memory"""
+    """Enhanced AI context with website-specific information and visitor memory"""
     context_parts = [f"User Question: {message}"]
     
     # Add website context
@@ -1111,6 +1111,80 @@ Visitor Memory (Last 90 Days):
                 context_parts.append(f"- {conv.get('user_message', '')[:100]}...")
     
     context_parts.append("\nPlease provide a helpful, personalized response considering the visitor's history and context.")
+    
+    return "\n".join(context_parts)
+
+async def enhance_ai_context_with_memory_and_intelligence(
+    message: str, 
+    site_config: Dict[str, Any], 
+    visitor_context: Dict[str, Any],
+    site_intelligence: Optional[Dict[str, Any]]
+) -> str:
+    """Enhanced AI context with website intelligence and visitor memory"""
+    context_parts = [f"User Question: {message}"]
+    
+    # Add website context
+    context_parts.append(f"""
+Website Context:
+- Site ID: {site_config.get('site_id', 'unknown')}
+- Bot Name: {site_config.get('bot_name', 'AI Assistant')}
+- Language: {site_config.get('language', 'en-US')}""")
+    
+    # Add website intelligence context if available
+    if site_intelligence:
+        context_parts.append(f"""
+Website Intelligence:
+- Total Pages: {site_intelligence.get('total_pages', 0)}
+- Website Structure: {len(site_intelligence.get('page_hierarchy', {}))} main sections
+- Available Content Categories: {', '.join(list(site_intelligence.get('content_categories', {}).keys())[:5])}
+- Supported User Intents: {', '.join(list(site_intelligence.get('intent_mapping', {}).keys()))}""")
+        
+        # Add relevant page suggestions based on query
+        if 'intent_mapping' in site_intelligence:
+            query_lower = message.lower()
+            relevant_intents = []
+            for intent, pages in site_intelligence['intent_mapping'].items():
+                intent_keywords = intent.replace('_', ' ').split()
+                if any(keyword in query_lower for keyword in intent_keywords):
+                    relevant_intents.append(f"{intent}: {len(pages)} pages available")
+            
+            if relevant_intents:
+                context_parts.append(f"\nRelevant Website Sections: {', '.join(relevant_intents[:3])}")
+        
+        # Add navigation suggestions
+        if 'navigation_paths' in site_intelligence:
+            context_parts.append(f"\nWebsite Navigation: {len(site_intelligence['navigation_paths'])} interconnected pages")
+    
+    # Add visitor memory context if available
+    if visitor_context:
+        context_parts.append(f"""
+Visitor Memory (Last 90 Days):
+- Total Conversations: {visitor_context.get('total_conversations', 0)}
+- First Visit: {visitor_context.get('first_visit', 'Unknown')}
+- Last Visit: {visitor_context.get('last_visit', 'Unknown')}
+- Days Since First Visit: {visitor_context.get('days_since_first_visit', 0)}
+- Days Since Last Visit: {visitor_context.get('days_since_last_visit', 0)}
+- Previous Topics: {', '.join(visitor_context.get('recent_topics', []))}
+- Is Returning Visitor: {visitor_context.get('is_returning_visitor', False)}""")
+        
+        # Add context from recent conversations
+        if visitor_context.get('previous_conversations'):
+            context_parts.append("\nRecent Conversation Context:")
+            for i, conv in enumerate(visitor_context['previous_conversations'][:3]):
+                context_parts.append(f"- {conv.get('user_message', '')[:100]}...")
+    
+    # Add intelligent guidance instructions
+    context_parts.append(f"""
+Intelligent Assistance Instructions:
+- Use the website intelligence to provide specific page recommendations
+- Help users navigate to relevant sections based on their intent
+- Provide step-by-step guidance when appropriate
+- If the user seems lost, offer to show them around the website
+- Proactively suggest relevant content based on their query
+- Use the visitor's history to personalize recommendations
+- Focus on helping them achieve their goals efficiently""")
+    
+    context_parts.append("\nPlease provide a helpful, intelligent response that leverages the website knowledge and visitor context to guide them effectively.")
     
     return "\n".join(context_parts)
 
