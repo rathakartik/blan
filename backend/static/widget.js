@@ -779,17 +779,58 @@
         }
         
         // Speech Methods
-        startListening() {
+        async requestMicrophonePermission() {
+            try {
+                console.log('🎤 Requesting microphone permission...');
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                console.log('✅ Microphone permission granted!');
+                // Stop the stream immediately as we only needed permission
+                stream.getTracks().forEach(track => track.stop());
+                return true;
+            } catch (error) {
+                console.error('❌ Microphone permission denied:', error);
+                this.addMessage('system', 'Microphone access is required for voice input. Please allow microphone permissions in your browser settings.');
+                return false;
+            }
+        }
+
+        async startListening() {
             if (!this.recognition) {
                 this.addMessage('system', 'Speech recognition is not supported in your browser.');
                 return;
             }
             
+            console.log('🎤 Starting voice input...');
+            
+            // Check if we have microphone permission
+            if (navigator.permissions) {
+                try {
+                    const permission = await navigator.permissions.query({ name: 'microphone' });
+                    console.log('🎤 Microphone permission status:', permission.state);
+                    
+                    if (permission.state === 'denied') {
+                        this.addMessage('system', 'Microphone access denied. Please allow microphone permissions and try again.');
+                        return;
+                    }
+                } catch (error) {
+                    console.warn('Could not check microphone permission:', error);
+                }
+            }
+            
+            // Request permission if needed
+            const hasPermission = await this.requestMicrophonePermission();
+            if (!hasPermission) return;
+            
             try {
                 this.recognition.start();
+                console.log('🎤 Speech recognition started successfully');
             } catch (error) {
-                console.error('Speech recognition error:', error);
-                this.addMessage('system', 'Error starting voice recognition. Please try again.');
+                console.error('🎤 Error starting speech recognition:', error);
+                if (error.message.includes('already started')) {
+                    this.addMessage('system', 'Voice recognition is already active. Please try again in a moment.');
+                } else {
+                    this.addMessage('system', 'Error starting voice recognition. Please try again.');
+                }
             }
         }
         
