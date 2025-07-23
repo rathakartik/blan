@@ -15,11 +15,13 @@ import {
 
 const Dashboard = () => {
   const [stats, setStats] = useState(null);
+  const [roiHighlights, setROIHighlights] = useState(null);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
   useEffect(() => {
     fetchDashboardStats();
+    fetchROIHighlights();
   }, []);
 
   const fetchDashboardStats = async () => {
@@ -30,6 +32,24 @@ const Dashboard = () => {
       console.error('Error fetching dashboard stats:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchROIHighlights = async () => {
+    try {
+      const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/analytics/dashboard`);
+      if (response.data?.site_performance?.length > 0) {
+        // Get ROI data for the top performing site
+        const topSite = response.data.site_performance[0];
+        try {
+          const roiResponse = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/sites/${topSite.site_id}/roi-report?days=30`);
+          setROIHighlights(roiResponse.data);
+        } catch (roiError) {
+          console.log('ROI data not available for top site');
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching ROI highlights:', error);
     }
   };
 
