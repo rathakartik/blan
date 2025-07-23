@@ -7,6 +7,7 @@ import Register from './components/auth/Register';
 import DashboardLayout from './components/dashboard/DashboardLayout';
 import Dashboard from './components/dashboard/Dashboard';
 import AdminDashboard from './components/dashboard/AdminDashboard';
+import ROIDashboard from './components/dashboard/ROIDashboard';
 import SiteList from './components/sites/SiteList';
 import SiteForm from './components/sites/SiteForm';
 import EmbedCode from './components/sites/EmbedCode';
