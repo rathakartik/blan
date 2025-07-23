@@ -853,6 +853,51 @@
         }
         
         // Speech Methods
+        async checkMicrophoneStatus() {
+            if (!this.elements.micStatus) return;
+            
+            try {
+                if (navigator.permissions) {
+                    const permission = await navigator.permissions.query({ name: 'microphone' });
+                    this.updateMicrophoneStatus(permission.state);
+                    
+                    // Listen for permission changes
+                    permission.onchange = () => {
+                        this.updateMicrophoneStatus(permission.state);
+                    };
+                } else {
+                    this.updateMicrophoneStatus('unknown');
+                }
+            } catch (error) {
+                console.warn('Could not check microphone permission:', error);
+                this.updateMicrophoneStatus('unknown');
+            }
+        }
+        
+        updateMicrophoneStatus(status) {
+            if (!this.elements.micStatus) return;
+            
+            const statusText = this.elements.micStatus.querySelector('.ai-widget-mic-status-text');
+            this.elements.micStatus.className = 'ai-widget-mic-status';
+            
+            switch (status) {
+                case 'granted':
+                    this.elements.micStatus.classList.add('granted');
+                    statusText.textContent = 'Granted';
+                    break;
+                case 'denied':
+                    this.elements.micStatus.classList.add('denied');
+                    statusText.textContent = 'Denied';
+                    break;
+                case 'prompt':
+                    statusText.textContent = 'Click to allow';
+                    break;
+                default:
+                    statusText.textContent = 'Unknown';
+                    break;
+            }
+        }
+
         async requestMicrophonePermission() {
             try {
                 console.log('🎤 Requesting microphone permission...');
@@ -860,9 +905,11 @@
                 console.log('✅ Microphone permission granted!');
                 // Stop the stream immediately as we only needed permission
                 stream.getTracks().forEach(track => track.stop());
+                this.updateMicrophoneStatus('granted');
                 return true;
             } catch (error) {
                 console.error('❌ Microphone permission denied:', error);
+                this.updateMicrophoneStatus('denied');
                 this.addMessage('system', 'Microphone access is required for voice input. Please allow microphone permissions in your browser settings.');
                 return false;
             }
