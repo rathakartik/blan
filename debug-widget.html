@@ -1,0 +1,225 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Debug AI Voice Assistant Widget</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        p { color: #666; margin-bottom: 10px; }
+        .debug-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .test-buttons {
+            margin: 20px 0;
+        }
+        .test-buttons button {
+            margin: 5px;
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .test-buttons button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 AI Voice Assistant Widget - Debug Mode</h1>
+        <p><strong>Purpose:</strong> Testing improved widget with microphone permissions and enhanced debugging</p>
+        
+        <div class="debug-info">
+            <div><strong>Browser Support:</strong></div>
+            <div id="browser-support">Checking...</div>
+        </div>
+        
+        <div class="test-buttons">
+            <button onclick="testTextInput()">🗨️ Test Text Chat</button>
+            <button onclick="testVoiceInput()">🎤 Test Voice Input</button>
+            <button onclick="checkPermissions()">🔐 Check Permissions</button>
+            <button onclick="toggleConsole()">📊 Toggle Console</button>
+        </div>
+        
+        <div id="console-output" style="display: none; background: #000; color: #00ff00; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 11px; max-height: 300px; overflow-y: auto;">
+            <div><strong>Console Output:</strong></div>
+            <div id="console-messages"></div>
+        </div>
+    </div>
+
+    <script>
+        // Debug console functionality
+        let consoleVisible = false;
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        const originalConsoleWarn = console.warn;
+        
+        function logToCustomConsole(type, ...args) {
+            const consoleDiv = document.getElementById('console-messages');
+            if (consoleDiv) {
+                const timestamp = new Date().toLocaleTimeString();
+                const message = args.map(arg => 
+                    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                ).join(' ');
+                
+                const logEntry = document.createElement('div');
+                logEntry.style.marginBottom = '5px';
+                logEntry.style.color = type === 'error' ? '#ff6b6b' : type === 'warn' ? '#ffd93d' : '#00ff00';
+                logEntry.textContent = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+                
+                consoleDiv.appendChild(logEntry);
+                consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            }
+        }
+        
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            logToCustomConsole('log', ...args);
+        };
+        
+        console.error = function(...args) {
+            originalConsoleError.apply(console, args);
+            logToCustomConsole('error', ...args);
+        };
+        
+        console.warn = function(...args) {
+            originalConsoleWarn.apply(console, args);
+            logToCustomConsole('warn', ...args);
+        };
+        
+        function toggleConsole() {
+            consoleVisible = !consoleVisible;
+            document.getElementById('console-output').style.display = consoleVisible ? 'block' : 'none';
+        }
+        
+        // Browser support check
+        function checkBrowserSupport() {
+            const support = {
+                speechRecognition: 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window,
+                speechSynthesis: 'speechSynthesis' in window,
+                mediaDevices: 'mediaDevices' in navigator,
+                permissions: 'permissions' in navigator,
+                fetch: 'fetch' in window
+            };
+            
+            let supportText = '';
+            for (const [feature, supported] of Object.entries(support)) {
+                supportText += `${feature}: ${supported ? '✅' : '❌'}<br>`;
+            }
+            
+            document.getElementById('browser-support').innerHTML = supportText;
+            return support;
+        }
+        
+        // Test functions
+        function testTextInput() {
+            console.log('Testing text input functionality...');
+            if (window.AIVoiceWidget && window.AIVoiceWidget.getInstance()) {
+                const widget = window.AIVoiceWidget.getInstance();
+                if (widget.handleUserMessage) {
+                    widget.handleUserMessage('Hello, this is a test message!', 'text');
+                    console.log('Text input test initiated');
+                } else {
+                    console.error('handleUserMessage method not found');
+                }
+            } else {
+                console.error('Widget not initialized');
+            }
+        }
+        
+        function testVoiceInput() {
+            console.log('Testing voice input functionality...');
+            if (window.AIVoiceWidget && window.AIVoiceWidget.getInstance()) {
+                const widget = window.AIVoiceWidget.getInstance();
+                if (widget.startListening) {
+                    widget.startListening();
+                    console.log('Voice input test initiated');
+                } else {
+                    console.error('startListening method not found');
+                }
+            } else {
+                console.error('Widget not initialized');
+            }
+        }
+        
+        async function checkPermissions() {
+            console.log('Checking permissions...');
+            
+            if ('permissions' in navigator) {
+                try {
+                    const micPermission = await navigator.permissions.query({ name: 'microphone' });
+                    console.log('Microphone permission:', micPermission.state);
+                } catch (error) {
+                    console.error('Error checking microphone permission:', error);
+                }
+            } else {
+                console.warn('Permissions API not supported');
+            }
+            
+            if ('mediaDevices' in navigator) {
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const audioInputs = devices.filter(device => device.kind === 'audioinput');
+                    console.log(`Found ${audioInputs.length} audio input devices`);
+                } catch (error) {
+                    console.error('Error enumerating devices:', error);
+                }
+            }
+        }
+        
+        // Initialize
+        window.addEventListener('load', () => {
+            checkBrowserSupport();
+            console.log('Debug page loaded - widget should initialize automatically');
+        });
+    </script>
+
+    <!-- AI Voice Assistant Widget - Enhanced Version -->
+    <script>
+    (function() {
+        // Prevent multiple loading
+        if (window.aiWidgetLoaded) return;
+        window.aiWidgetLoaded = true;
+        
+        console.log('🚀 Loading AI Voice Assistant Widget...');
+        
+        // Create and load the embed script
+        const script = document.createElement('script');
+        script.src = 'https://1b823cca-a15f-4de7-84e0-78cacec68eeb.preview.emergentagent.com/api/embed.js';
+        script.setAttribute('data-site-id', 'debug-test-site');
+        script.setAttribute('data-backend-url', 'https://1b823cca-a15f-4de7-84e0-78cacec68eeb.preview.emergentagent.com');
+        script.setAttribute('data-position', 'bottom-right');
+        script.setAttribute('data-theme', 'blue');
+        
+        // Error handling
+        script.onerror = function() {
+            console.error('❌ Failed to load AI Voice Assistant Widget');
+        };
+        
+        script.onload = function() {
+            console.log('✅ AI Voice Assistant Widget script loaded successfully');
+        };
+        
+        document.head.appendChild(script);
+    })();
+    </script>
+</body>
+</html>
