@@ -172,6 +172,40 @@ const Dashboard = () => {
         ))}
       </div>
 
+      {/* ROI Highlights */}
+      {roiHighlights && (
+        <div className="mb-8">
+          <div className="mb-4">
+            <h3 className="text-lg font-medium text-gray-900">ROI Highlights</h3>
+            <p className="text-gray-600">Performance insights from your top site</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {roiCards.map((card) => (
+              <Link
+                key={card.name}
+                to={card.href}
+                className="bg-gradient-to-r from-blue-50 to-green-50 rounded-lg shadow hover:shadow-md transition-shadow p-6 border border-blue-100"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className={`p-3 rounded-md ${getColorClasses(card.color)}`}>
+                      <card.icon className="h-6 w-6" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-600">{card.name}</p>
+                      <p className="text-2xl font-semibold text-gray-900">{card.value}</p>
+                    </div>
+                  </div>
+                  <div className="text-sm font-medium text-green-600">
+                    {card.change}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Interactions */}
