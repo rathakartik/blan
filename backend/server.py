@@ -18,10 +18,29 @@ import time
 from collections import defaultdict
 import asyncio
 
+import asyncio
+import aiohttp
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse, parse_qs
+from typing import Dict, List, Set, Optional, Any, Tuple
+import json
+import re
+from datetime import datetime, timedelta
+from collections import defaultdict, Counter
+import textstat
+import logging
+from dataclasses import dataclass, asdict
+import hashlib
+import nltk
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
+import numpy as np
+
 # Import new modules
 from models import *
 from auth import *
 from database import DatabaseService
+from website_intelligence import WebsiteIntelligenceEngine
 
 # Load environment variables
 load_dotenv()
