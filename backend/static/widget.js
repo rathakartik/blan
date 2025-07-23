@@ -630,6 +630,33 @@
                     0%, 100% { height: 4px !important; }
                     50% { height: 12px !important; }
                 }
+                
+                /* Microphone status indicator */
+                .ai-widget-mic-status {
+                    display: flex !important;
+                    align-items: center !important;
+                    gap: 4px !important;
+                    font-size: 10px !important;
+                    color: #64748b !important;
+                    margin-left: auto !important;
+                }
+                
+                .ai-widget-mic-status.granted {
+                    color: #22c55e !important;
+                }
+                
+                .ai-widget-mic-status.denied {
+                    color: #ef4444 !important;
+                }
+                
+                .ai-widget-mic-icon {
+                    width: 12px !important;
+                    height: 12px !important;
+                }
+                
+                .ai-widget-mic-status-text {
+                    font-size: 9px !important;
+                }
             `;
             
             document.head.appendChild(styles);
