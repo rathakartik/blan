@@ -1500,3 +1500,468 @@ async def get_widget_config(request: Request):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
+
+# ============================================================================
+# WEBSITE INTELLIGENCE & ROI API ENDPOINTS
+# ============================================================================
+
+@app.post("/api/sites/{site_id}/crawl")
+async def crawl_website(site_id: str, current_user: UserDB = Depends(get_current_user)):
+    """Initiate website crawling and intelligence analysis."""
+    if not db_service:
+        raise HTTPException(status_code=500, detail="Database not available")
+    
+    try:
+        # Get site information
+        site = await db_service.get_site_by_id(site_id, current_user.id)
+        if not site:
+            raise HTTPException(status_code=404, detail="Site not found")
+        
+        # Start website crawling
+        async with WebsiteIntelligenceEngine(db_service) as intelligence:
+            site_structure = await intelligence.crawl_website(
+                domain=site.domain,
+                max_pages=100,
+                max_depth=3
+            )
+            
+            return {
+                "message": "Website crawling completed successfully",
+                "site_id": site_id,
+                "domain": site.domain,
+                "pages_analyzed": site_structure.total_pages,
+                "crawl_timestamp": site_structure.last_full_crawl.isoformat(),
+                "roi_metrics": site_structure.roi_metrics
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Website crawling error: {e}")
+        raise HTTPException(status_code=500, detail=f"Crawling failed: {str(e)}")
+
+@app.get("/api/sites/{site_id}/intelligence")
+async def get_site_intelligence(site_id: str, current_user: UserDB = Depends(get_current_user)):
+    """Get website intelligence data for a site."""
+    if not db_service:
+        raise HTTPException(status_code=500, detail="Database not available")
+    
+    try:
+        # Verify site ownership
+        site = await db_service.get_site_by_id(site_id, current_user.id)
+        if not site:
+            raise HTTPException(status_code=404, detail="Site not found")
+        
+        # Get intelligence data
+        intelligence_data = await db_service.get_site_intelligence(site_id)
+        
+        if not intelligence_data:
+            return {
+                "message": "No intelligence data available. Please crawl the website first.",
+                "site_id": site_id,
+                "crawl_required": True
+            }
+        
+        return {
+            "site_id": site_id,
+            "intelligence_data": intelligence_data,
+            "last_updated": intelligence_data.get("last_full_crawl"),
+            "total_pages": intelligence_data.get("total_pages", 0),
+            "roi_metrics": intelligence_data.get("roi_metrics", {})
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get site intelligence error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/sites/{site_id}/analyze-intent")
+async def analyze_user_intent(site_id: str, request: Request):
+    """Analyze user intent and provide intelligent recommendations."""
+    try:
+        body = await request.json()
+        query = body.get("query", "").strip()
+        current_page = body.get("current_page", "")
+        visitor_id = body.get("visitor_id", "")
+        
+        if not query:
+            raise HTTPException(status_code=400, detail="Query is required")
+        
+        # Get site intelligence data
+        if db_service:
+            intelligence_data = await db_service.get_site_intelligence(site_id)
+            
+            if intelligence_data:
+                # Use intelligence engine for analysis
+                async with WebsiteIntelligenceEngine(db_service) as intelligence:
+                    # Reconstruct site structure from stored data
+                    from website_intelligence import SiteStructure
+                    site_structure = SiteStructure(**intelligence_data)
+                    
+                    # Analyze intent
+                    intent_analysis = await intelligence.analyze_user_intent(
+                        query, current_page, site_structure
+                    )
+                    
+                    # Get navigation suggestions
+                    navigation_suggestions = await intelligence.get_navigation_suggestions(
+                        query, current_page, site_structure
+                    )
+                    
+                    # Store intent analysis
+                    await db_service.store_intent_analysis({
+                        "site_id": site_id,
+                        "visitor_id": visitor_id,
+                        "query": query,
+                        "current_page": current_page,
+                        "intent_type": intent_analysis.intent_type,
+                        "confidence": intent_analysis.confidence,
+                        "suggested_pages": intent_analysis.suggested_pages,
+                        "conversion_probability": intent_analysis.conversion_probability,
+                        "journey_stage": intent_analysis.journey_stage,
+                        "timestamp": datetime.utcnow()
+                    })
+                    
+                    # Store navigation suggestion
+                    await db_service.store_navigation_suggestion({
+                        "site_id": site_id,
+                        "visitor_id": visitor_id,
+                        "query": query,
+                        "current_page": current_page,
+                        "suggested_pages": navigation_suggestions,
+                        "success_probability": intent_analysis.conversion_probability,
+                        "timestamp": datetime.utcnow()
+                    })
+                    
+                    return {
+                        "intent_analysis": {
+                            "intent_type": intent_analysis.intent_type,
+                            "confidence": intent_analysis.confidence,
+                            "journey_stage": intent_analysis.journey_stage,
+                            "conversion_probability": intent_analysis.conversion_probability,
+                            "recommended_actions": intent_analysis.recommended_actions
+                        },
+                        "navigation_suggestions": navigation_suggestions,
+                        "intelligent_response": f"Based on your query '{query}', I can help you with {intent_analysis.intent_type}. " +
+                                               f"Here are some relevant pages and actions I recommend."
+                    }
+        
+        # Fallback response if no intelligence data
+        return {
+            "intent_analysis": {
+                "intent_type": "information",
+                "confidence": 0.5,
+                "journey_stage": "awareness",
+                "conversion_probability": 0.3,
+                "recommended_actions": ["Provide general information", "Ask clarifying questions"]
+            },
+            "navigation_suggestions": [],
+            "intelligent_response": f"I understand you're looking for information about '{query}'. Let me help you find what you need."
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Intent analysis error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/sites/{site_id}/roi-report")
+async def get_roi_report(site_id: str, days: int = 30, current_user: UserDB = Depends(get_current_user)):
+    """Generate and retrieve ROI report for a site."""
+    if not db_service:
+        raise HTTPException(status_code=500, detail="Database not available")
+    
+    try:
+        # Verify site ownership
+        site = await db_service.get_site_by_id(site_id, current_user.id)
+        if not site:
+            raise HTTPException(status_code=404, detail="Site not found")
+        
+        # Generate ROI report
+        roi_report = await db_service.generate_roi_report(site_id, days)
+        
+        if not roi_report:
+            raise HTTPException(status_code=500, detail="Failed to generate ROI report")
+        
+        # Calculate ROI summary
+        engagement_metrics = roi_report.get("engagement_metrics", {})
+        conversion_metrics = roi_report.get("conversion_metrics", {})
+        roi_metrics = roi_report.get("roi_metrics", {})
+        
+        # Calculate estimated monthly value
+        monthly_savings = roi_metrics.get("support_cost_savings", 0) * (30 / days)
+        improved_conversion_value = conversion_metrics.get("conversion_rate", 0) * 100  # Simplified calculation
+        
+        roi_summary = {
+            "total_monthly_value": monthly_savings + improved_conversion_value,
+            "support_cost_savings": roi_metrics.get("support_cost_savings", 0),
+            "user_engagement_improvement": engagement_metrics.get("pages_per_session", 0),
+            "conversion_rate": conversion_metrics.get("conversion_rate", 0),
+            "user_satisfaction": roi_metrics.get("user_satisfaction_score", 0),
+            "ai_effectiveness": roi_metrics.get("ai_resolution_rate", 0)
+        }
+        
+        return {
+            "site_id": site_id,
+            "report_period": f"{days} days",
+            "generated_at": roi_report.get("generated_at"),
+            "roi_summary": roi_summary,
+            "detailed_metrics": roi_report,
+            "recommendations": generate_roi_recommendations(roi_report)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"ROI report error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/sites/{site_id}/user-journeys")
+async def get_user_journeys(site_id: str, visitor_id: Optional[str] = None, days: int = 30, current_user: UserDB = Depends(get_current_user)):
+    """Get user journey data for analysis."""
+    if not db_service:
+        raise HTTPException(status_code=500, detail="Database not available")
+    
+    try:
+        # Verify site ownership
+        site = await db_service.get_site_by_id(site_id, current_user.id)
+        if not site:
+            raise HTTPException(status_code=404, detail="Site not found")
+        
+        # Get user journeys
+        journeys = await db_service.get_user_journeys(site_id, visitor_id, days)
+        
+        # Calculate journey analytics
+        if journeys:
+            total_journeys = len(journeys)
+            completed_journeys = sum(1 for journey in journeys if journey.get("converted", False))
+            avg_journey_length = np.mean([len(journey.get("pages_visited", [])) for journey in journeys])
+            
+            # Get most common journey paths
+            all_paths = [journey.get("pages_visited", []) for journey in journeys]
+            common_paths = Counter([tuple(path[:3]) for path in all_paths if len(path) >= 3])  # First 3 pages
+            
+            journey_analytics = {
+                "total_journeys": total_journeys,
+                "completed_journeys": completed_journeys,
+                "completion_rate": (completed_journeys / total_journeys) * 100,
+                "average_journey_length": avg_journey_length,
+                "common_paths": [{"path": list(path), "count": count} for path, count in common_paths.most_common(5)]
+            }
+        else:
+            journey_analytics = {
+                "total_journeys": 0,
+                "completed_journeys": 0,
+                "completion_rate": 0,
+                "average_journey_length": 0,
+                "common_paths": []
+            }
+        
+        return {
+            "site_id": site_id,
+            "period": f"{days} days",
+            "journey_analytics": journey_analytics,
+            "individual_journeys": journeys[:20]  # Return latest 20 journeys
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"User journeys error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/track-user-journey")
+async def track_user_journey(request: Request):
+    """Track user journey for analytics."""
+    try:
+        body = await request.json()
+        
+        journey_data = {
+            "visitor_id": body.get("visitor_id", ""),
+            "session_id": body.get("session_id", ""),
+            "site_id": body.get("site_id", ""),
+            "page_url": body.get("page_url", ""),
+            "page_title": body.get("page_title", ""),
+            "time_on_page": body.get("time_on_page", 0),
+            "interaction_type": body.get("interaction_type", "page_view"),
+            "referrer": body.get("referrer", ""),
+            "user_agent": request.headers.get("user-agent", ""),
+            "timestamp": datetime.utcnow()
+        }
+        
+        if db_service:
+            # Store journey data
+            await db_service.store_user_journey(journey_data)
+            
+            # Update or create user journey record
+            existing_journey = await db_service.user_journeys.find_one({
+                "visitor_id": journey_data["visitor_id"],
+                "session_id": journey_data["session_id"]
+            })
+            
+            if existing_journey:
+                # Update existing journey
+                pages_visited = existing_journey.get("pages_visited", [])
+                if journey_data["page_url"] not in pages_visited:
+                    pages_visited.append(journey_data["page_url"])
+                
+                time_on_pages = existing_journey.get("time_on_pages", {})
+                time_on_pages[journey_data["page_url"]] = journey_data["time_on_page"]
+                
+                await db_service.user_journeys.update_one(
+                    {"visitor_id": journey_data["visitor_id"], "session_id": journey_data["session_id"]},
+                    {"$set": {
+                        "pages_visited": pages_visited,
+                        "time_on_pages": time_on_pages,
+                        "last_updated": datetime.utcnow()
+                    }}
+                )
+            else:
+                # Create new journey
+                new_journey = {
+                    "visitor_id": journey_data["visitor_id"],
+                    "session_id": journey_data["session_id"],
+                    "site_id": journey_data["site_id"],
+                    "pages_visited": [journey_data["page_url"]],
+                    "time_on_pages": {journey_data["page_url"]: journey_data["time_on_page"]},
+                    "intent_progression": [],
+                    "conversion_events": [],
+                    "journey_stage": "awareness",
+                    "converted": False,
+                    "timestamp": datetime.utcnow(),
+                    "last_updated": datetime.utcnow()
+                }
+                await db_service.user_journeys.insert_one(new_journey)
+        
+        return {"status": "journey_tracked"}
+        
+    except Exception as e:
+        logger.error(f"Journey tracking error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/sites/{site_id}/analytics/roi")
+async def get_roi_analytics(site_id: str, days: int = 30, current_user: UserDB = Depends(get_current_user)):
+    """Get detailed ROI analytics."""
+    if not db_service:
+        raise HTTPException(status_code=500, detail="Database not available")
+    
+    try:
+        # Verify site ownership
+        site = await db_service.get_site_by_id(site_id, current_user.id)
+        if not site:
+            raise HTTPException(status_code=404, detail="Site not found")
+        
+        # Get latest ROI report
+        roi_report = await db_service.get_latest_roi_report(site_id)
+        
+        # Get intent analytics
+        intent_analytics = await db_service.get_intent_analytics(site_id, days)
+        
+        # Get navigation analytics
+        nav_analytics = await db_service.get_navigation_analytics(site_id, days)
+        
+        return {
+            "site_id": site_id,
+            "roi_report": roi_report,
+            "intent_analytics": intent_analytics,
+            "navigation_analytics": nav_analytics,
+            "performance_indicators": {
+                "user_engagement": calculate_engagement_score(roi_report),
+                "conversion_optimization": calculate_conversion_score(roi_report),
+                "ai_effectiveness": calculate_ai_effectiveness(roi_report),
+                "cost_savings": calculate_cost_savings(roi_report)
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"ROI analytics error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Helper functions for ROI calculations
+def generate_roi_recommendations(roi_report: Dict[str, Any]) -> List[str]:
+    """Generate ROI improvement recommendations."""
+    recommendations = []
+    
+    roi_metrics = roi_report.get("roi_metrics", {})
+    conversion_metrics = roi_report.get("conversion_metrics", {})
+    engagement_metrics = roi_report.get("engagement_metrics", {})
+    
+    # User satisfaction recommendations
+    user_satisfaction = roi_metrics.get("user_satisfaction_score", 0)
+    if user_satisfaction < 70:
+        recommendations.append("Improve AI response quality to increase user satisfaction")
+        recommendations.append("Add more comprehensive FAQ content to better address user queries")
+    
+    # Conversion rate recommendations
+    conversion_rate = conversion_metrics.get("conversion_rate", 0)
+    if conversion_rate < 5:
+        recommendations.append("Optimize conversion funnels and call-to-action placement")
+        recommendations.append("Implement personalized recommendations based on user intent")
+    
+    # Navigation efficiency recommendations
+    navigation_efficiency = roi_metrics.get("navigation_efficiency", 0)
+    if navigation_efficiency < 80:
+        recommendations.append("Improve website navigation structure and internal linking")
+        recommendations.append("Add intelligent page suggestions based on user behavior")
+    
+    # AI effectiveness recommendations
+    ai_resolution_rate = roi_metrics.get("ai_resolution_rate", 0)
+    if ai_resolution_rate < 60:
+        recommendations.append("Expand AI knowledge base with more website-specific content")
+        recommendations.append("Implement proactive assistance based on user journey stage")
+    
+    return recommendations
+
+def calculate_engagement_score(roi_report: Dict[str, Any]) -> float:
+    """Calculate user engagement score."""
+    if not roi_report:
+        return 0.0
+    
+    engagement_metrics = roi_report.get("engagement_metrics", {})
+    pages_per_session = engagement_metrics.get("pages_per_session", 0)
+    avg_session_duration = engagement_metrics.get("avg_session_duration", 0)
+    
+    # Normalize scores (assuming optimal values)
+    page_score = min(100, (pages_per_session / 5) * 100)  # 5 pages per session is optimal
+    duration_score = min(100, (avg_session_duration / 180) * 100)  # 3 minutes is optimal
+    
+    return (page_score + duration_score) / 2
+
+def calculate_conversion_score(roi_report: Dict[str, Any]) -> float:
+    """Calculate conversion optimization score."""
+    if not roi_report:
+        return 0.0
+    
+    conversion_metrics = roi_report.get("conversion_metrics", {})
+    conversion_rate = conversion_metrics.get("conversion_rate", 0)
+    intent_accuracy = conversion_metrics.get("intent_accuracy", 0)
+    
+    # Conversion rate score (assuming 10% is excellent)
+    conversion_score = min(100, (conversion_rate / 10) * 100)
+    
+    return (conversion_score + intent_accuracy) / 2
+
+def calculate_ai_effectiveness(roi_report: Dict[str, Any]) -> float:
+    """Calculate AI effectiveness score."""
+    if not roi_report:
+        return 0.0
+    
+    roi_metrics = roi_report.get("roi_metrics", {})
+    ai_resolution_rate = roi_metrics.get("ai_resolution_rate", 0)
+    user_satisfaction = roi_metrics.get("user_satisfaction_score", 0)
+    
+    return (ai_resolution_rate + user_satisfaction) / 2
+
+def calculate_cost_savings(roi_report: Dict[str, Any]) -> float:
+    """Calculate cost savings score."""
+    if not roi_report:
+        return 0.0
+    
+    roi_metrics = roi_report.get("roi_metrics", {})
+    support_cost_savings = roi_metrics.get("support_cost_savings", 0)
+    
+    # Normalize based on expected monthly savings (assuming $500/month is excellent)
+    return min(100, (support_cost_savings / 500) * 100)
