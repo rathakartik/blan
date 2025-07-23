@@ -84,6 +84,26 @@ const Dashboard = () => {
     }
   ];
 
+  // ROI Highlight Cards
+  const roiCards = roiHighlights ? [
+    {
+      name: 'Monthly ROI Value',
+      value: `$${(roiHighlights.roi_summary?.total_monthly_value || 0).toFixed(0)}`,
+      icon: CurrencyDollarIcon,
+      color: 'green',
+      change: '+15%',
+      href: `/dashboard/sites/${roiHighlights.site_id}/roi`
+    },
+    {
+      name: 'User Satisfaction',
+      value: `${(roiHighlights.roi_summary?.user_satisfaction || 0).toFixed(1)}%`,
+      icon: BoltIcon,
+      color: 'blue',
+      change: '+8%',
+      href: `/dashboard/sites/${roiHighlights.site_id}/roi`
+    }
+  ] : [];
+
   const getColorClasses = (color) => {
     const colors = {
       blue: 'bg-blue-500 text-blue-100',
