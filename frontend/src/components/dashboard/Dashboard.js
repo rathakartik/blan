@@ -8,7 +8,9 @@ import {
   UserGroupIcon,
   EyeIcon,
   PlusIcon,
-  ArrowTrendingUpIcon
+  ArrowTrendingUpIcon,
+  CurrencyDollarIcon,
+  BoltIcon
 } from '@heroicons/react/24/outline';
 
 const Dashboard = () => {
