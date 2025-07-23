@@ -18,6 +18,13 @@ class DatabaseService:
         self.interactions: Collection = self.db.interactions
         self.conversations: Collection = self.db.conversations
         
+        # New collections for Website Intelligence
+        self.site_intelligence: Collection = self.db.site_intelligence
+        self.user_journeys: Collection = self.db.user_journeys
+        self.intent_analysis: Collection = self.db.intent_analysis
+        self.navigation_suggestions: Collection = self.db.navigation_suggestions
+        self.roi_reports: Collection = self.db.roi_reports
+        
         # Create indexes for performance
         self._create_indexes()
     
