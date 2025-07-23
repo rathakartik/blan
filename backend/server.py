@@ -388,6 +388,15 @@ async def get_status():
     except:
         return {"status": "error", "timestamp": datetime.utcnow().isoformat()}
 
+@app.get("/api/embed.js")
+async def get_embed_script():
+    """Serve the embed script via API endpoint to bypass routing issues"""
+    try:
+        return FileResponse("/app/backend/static/embed.js", media_type="text/javascript")
+    except Exception as e:
+        logger.error(f"Embed script error: {e}")
+        raise HTTPException(status_code=404, detail="Embed script not found")
+
 @app.post("/api/chat")
 async def chat_with_ai(request: Request):
     """Main chat endpoint for the voice widget with 90-day conversation memory"""
