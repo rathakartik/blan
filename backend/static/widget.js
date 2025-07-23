@@ -429,6 +429,7 @@
                     display: flex !important;
                     gap: 8px !important;
                     margin-bottom: 12px !important;
+                    align-items: center !important;
                 }
                 
                 .ai-widget-voice-btn, .ai-widget-stop-btn {
