@@ -140,6 +140,97 @@ class EmbedScript(BaseModel):
     script_content: str
     installation_instructions: str
 
+# Website Intelligence Models
+class PageAnalysis(BaseModel):
+    url: str
+    title: str
+    description: str
+    content_summary: str
+    page_type: str
+    intent_categories: List[str]
+    user_journey_stage: str
+    seo_score: float
+    accessibility_score: float
+    conversion_elements: List[Dict[str, str]]
+    last_analyzed: datetime
+
+class SiteIntelligence(BaseModel):
+    site_id: str
+    domain: str
+    total_pages: int
+    page_analysis: List[PageAnalysis]
+    navigation_structure: Dict[str, List[str]]
+    conversion_funnels: List[List[str]]
+    content_categories: Dict[str, List[str]]
+    intent_mapping: Dict[str, List[str]]
+    last_crawl: datetime
+    roi_metrics: Dict[str, Any]
+
+class UserJourney(BaseModel):
+    visitor_id: str
+    session_id: str
+    site_id: str
+    pages_visited: List[str]
+    time_on_pages: Dict[str, float]
+    intent_progression: List[str]
+    conversion_events: List[Dict[str, Any]]
+    journey_stage: str
+    exit_page: Optional[str]
+    converted: bool
+    timestamp: datetime
+
+class ROIReport(BaseModel):
+    site_id: str
+    period_start: datetime
+    period_end: datetime
+    metrics: Dict[str, Any]
+    
+    # Engagement Metrics
+    total_visitors: int
+    total_page_views: int
+    avg_session_duration: float
+    bounce_rate: float
+    pages_per_session: float
+    
+    # Conversion Metrics
+    total_conversions: int
+    conversion_rate: float
+    lead_generation: int
+    form_completions: int
+    
+    # AI Assistant Impact
+    ai_interactions: int
+    ai_resolution_rate: float
+    support_cost_savings: float
+    user_satisfaction_score: float
+    
+    # Navigation Intelligence
+    navigation_efficiency: float
+    page_recommendation_success: float
+    user_flow_optimization: float
+    
+    # Content Performance
+    content_effectiveness: float
+    intent_match_accuracy: float
+    journey_completion_rate: float
+
+class IntentAnalysis(BaseModel):
+    query: str
+    intent_type: str
+    confidence: float
+    suggested_pages: List[str]
+    recommended_actions: List[str]
+    conversion_probability: float
+    journey_stage: str
+    timestamp: datetime
+
+class NavigationSuggestion(BaseModel):
+    query: str
+    current_page: str
+    suggested_pages: List[Dict[str, Any]]
+    reasoning: str
+    success_probability: float
+
 # Database Models (for MongoDB)
 class UserDB(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
