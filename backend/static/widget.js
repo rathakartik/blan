@@ -692,46 +692,64 @@
         async handleUserMessage(message, type = 'text') {
             if (!message.trim()) return;
             
+            console.log(`💬 Handling ${type} message:`, message);
+            
             this.addMessage('user', message);
             this.showTyping();
             this.logAnalytics(type === 'voice' ? 'voice_input' : 'text_input');
             
             try {
+                console.log('🌐 Sending chat request to:', `${this.config.backendUrl}/api/chat`);
+                
+                const requestData = {
+                    message: message,
+                    session_id: this.sessionId,
+                    site_id: this.config.siteId,
+                    visitor_id: this.visitorId
+                };
+                
+                console.log('📤 Request data:', requestData);
+                
                 const response = await fetch(`${this.config.backendUrl}/api/chat`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        message: message,
-                        session_id: this.sessionId,
-                        site_id: this.config.siteId,
-                        visitor_id: this.visitorId
-                    }),
-                    signal: AbortSignal.timeout(10000)
+                    body: JSON.stringify(requestData),
+                    signal: AbortSignal.timeout(15000)
                 });
                 
+                console.log('📥 Response status:', response.status);
+                
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorText = await response.text();
+                    console.error('❌ HTTP error response:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
                 }
                 
                 const data = await response.json();
+                console.log('✅ Chat response:', data);
+                
                 this.hideTyping();
                 this.addMessage('bot', data.response);
                 
                 if (this.config.voice_enabled) {
+                    console.log('🔊 Speaking response');
                     this.speak(data.response);
                 }
                 
                 this.logAnalytics('ai_response');
+                
             } catch (error) {
-                console.error('Chat error:', error);
+                console.error('❌ Chat error:', error);
                 this.hideTyping();
                 
                 if (error.name === 'AbortError') {
-                    this.addMessage('system', 'Request timeout. Please try again.');
+                    this.addMessage('system', 'Request timeout. Please check your connection and try again.');
+                } else if (error.message.includes('Failed to fetch')) {
+                    this.addMessage('system', 'Network error. Please check your internet connection and try again.');
                 } else {
-                    this.addMessage('system', 'Sorry, I encountered an error. Please try again.');
+                    this.addMessage('system', `Error: ${error.message}. Please try again.`);
                 }
             }
         }
