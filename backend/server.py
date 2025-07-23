@@ -483,8 +483,10 @@ async def chat_with_ai(request: Request):
                         "content": msg["ai_response"]
                     })
                 
-                # Add current message with enhanced context
-                enhanced_message = await enhance_ai_context_with_memory(message, site_config, visitor_context)
+                # Add current message with enhanced context including site intelligence
+                enhanced_message = await enhance_ai_context_with_memory_and_intelligence(
+                    message, site_config, visitor_context, site_intelligence
+                )
                 conversation_context.append({
                     "role": "user",
                     "content": enhanced_message
