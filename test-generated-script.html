@@ -36,20 +36,20 @@
         
         // Create and load the embed script
         const script = document.createElement('script');
-        script.src = 'https://1b823cca-a15f-4de7-84e0-78cacec68eeb.preview.emergentagent.com/api/embed.js';
+        script.src = 'https://5d4c5737-5124-4cdf-83bd-feab593e43fb.preview.emergentagent.com/api/embed.js';
         script.setAttribute('data-site-id', '0b976b0c-26c1-47f9-8862-2dd9989d53ea');
-        script.setAttribute('data-backend-url', 'https://1b823cca-a15f-4de7-84e0-78cacec68eeb.preview.emergentagent.com');
+        script.setAttribute('data-backend-url', 'https://5d4c5737-5124-4cdf-83bd-feab593e43fb.preview.emergentagent.com');
         script.setAttribute('data-position', 'bottom-right');
         script.setAttribute('data-theme', 'blue');
         
         // Error handling
         script.onerror = function() {
-            console.error('Failed to load AI Voice Assistant Widget from: https://1b823cca-a15f-4de7-84e0-78cacec68eeb.preview.emergentagent.com/api/embed.js');
+            console.error('Failed to load AI Voice Assistant Widget from: https://5d4c5737-5124-4cdf-83bd-feab593e43fb.preview.emergentagent.com/api/embed.js');
             console.error('Please check if the backend URL is correct and accessible');
         };
         
         script.onload = function() {
-            console.log('AI Voice Assistant Widget loaded successfully from: https://1b823cca-a15f-4de7-84e0-78cacec68eeb.preview.emergentagent.com/api/embed.js');
+            console.log('AI Voice Assistant Widget loaded successfully from: https://5d4c5737-5124-4cdf-83bd-feab593e43fb.preview.emergentagent.com/api/embed.js');
         };
         
         document.head.appendChild(script);
