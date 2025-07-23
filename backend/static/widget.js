@@ -109,7 +109,7 @@
         }
         
         initializeSpeech() {
-            // Speech Recognition
+            // Speech Recognition with explicit permission request
             if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                 this.recognition = new SpeechRecognition();
@@ -118,22 +118,44 @@
                 this.recognition.interimResults = false;
                 this.recognition.lang = this.config.language;
                 
-                this.recognition.onstart = () => this.setListening(true);
-                this.recognition.onend = () => this.setListening(false);
+                this.recognition.onstart = () => {
+                    console.log('🎤 Speech recognition started');
+                    this.setListening(true);
+                };
+                
+                this.recognition.onend = () => {
+                    console.log('🎤 Speech recognition ended');
+                    this.setListening(false);
+                };
+                
                 this.recognition.onresult = (event) => {
                     const transcript = event.results[0][0].transcript;
+                    console.log('🎤 Speech recognized:', transcript);
                     this.handleUserMessage(transcript, 'voice');
                 };
+                
                 this.recognition.onerror = (event) => {
-                    console.error('Speech recognition error:', event.error);
+                    console.error('🎤 Speech recognition error:', event.error);
                     this.setListening(false);
-                    this.addMessage('system', 'Sorry, I had trouble hearing you. Please try again.');
+                    
+                    if (event.error === 'not-allowed') {
+                        this.addMessage('system', 'Microphone access denied. Please allow microphone permissions and try again.');
+                    } else if (event.error === 'no-speech') {
+                        this.addMessage('system', 'No speech detected. Please try speaking again.');
+                    } else {
+                        this.addMessage('system', `Speech recognition error: ${event.error}. Please try again.`);
+                    }
                 };
+            } else {
+                console.warn('🎤 Speech recognition not supported in this browser');
             }
             
             // Speech Synthesis
             if ('speechSynthesis' in window) {
                 this.synthesis = window.speechSynthesis;
+                console.log('🔊 Speech synthesis available');
+            } else {
+                console.warn('🔊 Speech synthesis not supported in this browser');
             }
         }
         
