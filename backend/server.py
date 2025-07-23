@@ -442,8 +442,15 @@ async def chat_with_ai(request: Request):
         if is_rate_limited(client_ip, "chat", MAX_CHAT_REQUESTS_PER_MINUTE):
             raise HTTPException(status_code=429, detail="Chat rate limit exceeded")
         
-        # Get site-specific configuration
+        # Get site-specific configuration and intelligence
         site_config = await get_site_configuration(site_id)
+        
+        # Get site intelligence for smarter responses
+        site_intelligence = None
+        if db_service:
+            intelligence_data = await db_service.get_site_intelligence(site_id)
+            if intelligence_data:
+                site_intelligence = intelligence_data
         
         # Get visitor's historical context (90 days)
         visitor_context = await get_visitor_context(visitor_id, site_id) if visitor_id else None
