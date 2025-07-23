@@ -626,13 +626,19 @@
         }
         
         setupEventListeners() {
+            console.log('🔧 Setting up event listeners...');
+            
             // Toggle button
-            this.elements.toggle.addEventListener('click', () => this.toggleWidget());
+            this.elements.toggle.addEventListener('click', () => {
+                console.log('🖱️ Widget toggle clicked');
+                this.toggleWidget();
+            });
             
             // Input form
             this.elements.inputForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 const message = this.elements.input.value.trim();
+                console.log('📝 Form submitted with message:', message);
                 if (message) {
                     this.handleUserMessage(message, 'text');
                     this.elements.input.value = '';
@@ -641,21 +647,30 @@
             
             // Voice button
             if (this.elements.voiceBtn) {
-                this.elements.voiceBtn.addEventListener('click', () => this.startListening());
+                this.elements.voiceBtn.addEventListener('click', () => {
+                    console.log('🎤 Voice button clicked');
+                    this.startListening();
+                });
             }
             
             // Stop button
             if (this.elements.stopBtn) {
-                this.elements.stopBtn.addEventListener('click', () => this.stopSpeaking());
+                this.elements.stopBtn.addEventListener('click', () => {
+                    console.log('⏹️ Stop button clicked');
+                    this.stopSpeaking();
+                });
             }
             
             // Keyboard shortcuts
             document.addEventListener('keydown', (e) => {
                 if (e.ctrlKey && e.shiftKey && e.key === 'A') {
                     e.preventDefault();
+                    console.log('⌨️ Keyboard shortcut activated');
                     this.toggleWidget();
                 }
             });
+            
+            console.log('✅ Event listeners set up successfully');
         }
         
         // Widget Actions
