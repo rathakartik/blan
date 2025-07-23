@@ -150,8 +150,15 @@ const SiteList = () => {
                       <ChartBarIcon className="h-4 w-4" />
                     </Link>
                     <Link
-                      to={`/dashboard/sites/${site.id}/embed`}
+                      to={`/dashboard/sites/${site.id}/roi`}
                       className="p-2 text-gray-400 hover:text-purple-600 transition-colors"
+                      title="ROI Dashboard"
+                    >
+                      <CurrencyDollarIcon className="h-4 w-4" />
+                    </Link>
+                    <Link
+                      to={`/dashboard/sites/${site.id}/embed`}
+                      className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
                       title="Get embed code"
                     >
                       <CodeBracketIcon className="h-4 w-4" />
