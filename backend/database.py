@@ -4,6 +4,7 @@ from pymongo import MongoClient, DESCENDING
 from pymongo.collection import Collection
 from bson import ObjectId
 import os
+import numpy as np
 from models import UserDB, SiteDB, InteractionDB, AnalyticsStats, DashboardStats
 from auth import get_password_hash, verify_password, create_reset_token
 import logging
