@@ -66,7 +66,7 @@ def generate_embed_script(site_id: str, backend_url: str) -> str:
     
     // Create and load the embed script
     const script = document.createElement('script');
-    script.src = '{backend_url}/static/embed.js';
+    script.src = '{backend_url}/api/embed.js';
     script.setAttribute('data-site-id', '{site_id}');
     script.setAttribute('data-backend-url', '{backend_url}');
     script.setAttribute('data-position', 'bottom-right');
@@ -74,11 +74,12 @@ def generate_embed_script(site_id: str, backend_url: str) -> str:
     
     // Error handling
     script.onerror = function() {{
-        console.error('Failed to load AI Voice Assistant Widget');
+        console.error('Failed to load AI Voice Assistant Widget from: {backend_url}/api/embed.js');
+        console.error('Please check if the backend URL is correct and accessible');
     }};
     
     script.onload = function() {{
-        console.log('AI Voice Assistant Widget loaded successfully');
+        console.log('AI Voice Assistant Widget loaded successfully from: {backend_url}/api/embed.js');
     }};
     
     document.head.appendChild(script);
