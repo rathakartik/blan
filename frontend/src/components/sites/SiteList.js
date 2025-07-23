@@ -8,7 +8,8 @@ import {
   TrashIcon,
   GlobeAltIcon,
   ChartBarIcon,
-  CodeBracketIcon
+  CodeBracketIcon,
+  CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
 
 const SiteList = () => {
