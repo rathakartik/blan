@@ -61,8 +61,8 @@ rate_limits = defaultdict(lambda: defaultdict(list))
 
 # Security configurations
 MAX_MESSAGE_LENGTH = 1000
-MAX_REQUESTS_PER_MINUTE = 60
-MAX_CHAT_REQUESTS_PER_MINUTE = 20
+MAX_REQUESTS_PER_MINUTE = 200
+MAX_CHAT_REQUESTS_PER_MINUTE = 100
 BLOCKED_PATTERNS = [
     r'<script[^>]*>.*?</script>',
     r'javascript:',
