@@ -23,7 +23,7 @@ import {
   CurrencyDollarIcon,
   UserGroupIcon,
   BoltIcon,
-  TrendingUpIcon,
+  ArrowTrendingUpIcon,
   ClockIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
