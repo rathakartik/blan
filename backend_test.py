@@ -11,7 +11,7 @@ from datetime import datetime
 import uuid
 
 # Configuration
-BASE_URL = "https://5d4c5737-5124-4cdf-83bd-feab593e43fb.preview.emergentagent.com"  # Using the backend URL from frontend/.env
+BASE_URL = "https://7c22ebce-6df8-4589-98e2-2d39a78cddd6.preview.emergentagent.com"  # Using the backend URL from frontend/.env
 API_BASE = f"{BASE_URL}/api"
 
 def print_test_header(test_name):
