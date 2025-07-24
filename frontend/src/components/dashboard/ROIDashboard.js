@@ -224,7 +224,7 @@ const ROIDashboard = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center">
             <div className="p-3 rounded-md bg-purple-500 text-purple-100">
-              <TrendingUpIcon className="h-6 w-6" />
+              <ArrowTrendingUpIcon className="h-6 w-6" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-500">Conversion Rate</p>
