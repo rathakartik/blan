@@ -54,8 +54,11 @@ const VoiceWidget = ({ config = {} }) => {
 
   // Initialize speech recognition and synthesis
   useEffect(() => {
+    console.log('🎯 Initializing speech recognition...');
+    
     // Check for speech recognition support
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      console.log('✅ Speech recognition API available');
       setSpeechSupported(true);
       
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -66,30 +69,63 @@ const VoiceWidget = ({ config = {} }) => {
       recognitionRef.current.lang = widgetConfig.language;
 
       recognitionRef.current.onstart = () => {
+        console.log('🎤 Speech recognition started');
         setIsListening(true);
         logInteraction('voice_start');
       };
 
       recognitionRef.current.onresult = (event) => {
+        console.log('🗣️ Speech recognition result:', event);
         const transcript = event.results[0][0].transcript;
+        console.log('📝 Transcript:', transcript);
         setIsListening(false);
         handleUserMessage(transcript, 'voice');
       };
 
       recognitionRef.current.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
+        console.error('❌ Speech recognition error:', event.error, event);
         setIsListening(false);
-        addMessage('system', 'Sorry, I had trouble hearing you. Please try again.');
+        
+        // Provide more specific error messages
+        let errorMessage = 'Sorry, I had trouble hearing you. Please try again.';
+        switch (event.error) {
+          case 'no-speech':
+            errorMessage = 'No speech detected. Please try speaking again.';
+            break;
+          case 'audio-capture':
+            errorMessage = 'Microphone not found or access denied. Please check your microphone settings.';
+            break;
+          case 'not-allowed':
+            errorMessage = 'Microphone access denied. Please allow microphone permission and try again.';
+            break;
+          case 'network':
+            errorMessage = 'Network error occurred. Please check your internet connection.';
+            break;
+          case 'service-not-allowed':
+            errorMessage = 'Speech recognition service not allowed. Please try again.';
+            break;
+        }
+        
+        addMessage('system', errorMessage);
       };
 
       recognitionRef.current.onend = () => {
+        console.log('🔇 Speech recognition ended');
         setIsListening(false);
       };
+      
+      console.log('✅ Speech recognition initialized successfully');
+    } else {
+      console.log('❌ Speech recognition API not available');
+      setSpeechSupported(false);
     }
 
     // Check for speech synthesis support
     if ('speechSynthesis' in window) {
+      console.log('✅ Speech synthesis API available');
       synthesisRef.current = window.speechSynthesis;
+    } else {
+      console.log('❌ Speech synthesis API not available');
     }
   }, [widgetConfig.language]);
 
