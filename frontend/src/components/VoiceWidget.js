@@ -18,6 +18,59 @@ const VoiceWidget = ({ config = {} }) => {
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   
+  
+  // Platform detection and configuration
+  useEffect(() => {
+    const detectPlatform = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const platform = navigator.platform.toLowerCase();
+      
+      const info = {
+        isIOS: /iphone|ipad|ipod/.test(userAgent) || (platform === 'macintel' && navigator.maxTouchPoints > 1),
+        isAndroid: /android/.test(userAgent),
+        isMobile: /mobile|android|iphone|ipad|ipod/.test(userAgent),
+        isWindows: /windows|win32|win64/.test(platform),
+        isLinux: /linux/.test(platform),
+        isMac: /mac/.test(platform),
+        browser: getBrowserInfo(userAgent),
+        supports: {
+          speechRecognition: 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window,
+          speechSynthesis: 'speechSynthesis' in window,
+          mediaDevices: 'MediaDevices' in window && 'getUserMedia' in navigator.mediaDevices,
+          webRTC: 'RTCPeerConnection' in window
+        }
+      };
+      
+      // Set voice mode based on platform capabilities
+      if (info.isIOS) {
+        // iOS Safari has limited speech recognition support
+        setVoiceMode('speech-only');
+      } else if (info.supports.speechRecognition && info.supports.speechSynthesis && info.supports.mediaDevices) {
+        setVoiceMode('full');
+      } else if (info.supports.speechSynthesis) {
+        setVoiceMode('speech-only');
+      } else {
+        setVoiceMode('text-only');
+      }
+      
+      console.log('Platform detected:', info);
+      console.log('Voice mode set to:', info.isIOS ? 'speech-only' : 'full');
+      
+      return info;
+    };
+    
+    const getBrowserInfo = (userAgent) => {
+      if (userAgent.includes('chrome')) return 'chrome';
+      if (userAgent.includes('firefox')) return 'firefox';
+      if (userAgent.includes('safari') && !userAgent.includes('chrome')) return 'safari';
+      if (userAgent.includes('edge')) return 'edge';
+      return 'unknown';
+    };
+    
+    const info = detectPlatform();
+    setPlatformInfo(info);
+  }, []);
+
   // Generate or retrieve visitor ID
   useEffect(() => {
     const getVisitorId = () => {
