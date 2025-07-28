@@ -1202,13 +1202,49 @@ Intelligent Assistance Instructions:
     
     return "\n".join(context_parts)
 
-def create_system_prompt_with_memory(site_config: Dict[str, Any], visitor_context: Dict[str, Any]) -> str:
-    """Create customized system prompt with visitor memory and website intelligence"""
+def create_system_prompt_with_memory_and_platform(site_config: Dict[str, Any], visitor_context: Dict[str, Any], platform: str, voice_mode: str) -> str:
+    """Create customized system prompt with visitor memory, website intelligence, and platform awareness"""
     bot_name = site_config.get("bot_name", "AI Assistant")
     language = site_config.get("language", "en-US")
     
+    # Platform-specific response guidelines
+    platform_guidelines = {
+        "ios": {
+            "response_length": "Keep responses under 150 words for optimal voice synthesis on iOS",
+            "voice_note": "iOS voice features may be limited, prioritize clear, concise responses",
+            "interaction": "Users tap to interact, responses should be immediate and clear"
+        },
+        "android": {
+            "response_length": "Keep responses under 200 words for good mobile experience",
+            "voice_note": "Android supports full voice features, balance text and voice responses",
+            "interaction": "Users can both tap and hold for voice, provide flexible interaction hints"
+        },
+        "desktop": {
+            "response_length": "Responses can be up to 300 words for comprehensive answers",
+            "voice_note": "Full voice features available, use rich responses with voice output",
+            "interaction": "Users have full keyboard and mouse, provide detailed guidance"
+        }
+    }
+    
+    current_platform = platform_guidelines.get(platform, platform_guidelines["desktop"])
+    
+    # Voice mode specific instructions
+    voice_instructions = {
+        "full": "You can both listen and speak. Use voice-friendly language and provide audio responses.",
+        "speech-only": "You can speak but voice recognition is limited. Focus on clear audio responses.",
+        "text-only": "Voice features are disabled. Focus on text-based interaction."
+    }
+    
     # Base prompt with enhanced capabilities
-    base_prompt = f"""You are {bot_name}, an intelligent AI assistant embedded on a website to help visitors with all their questions and needs. You are equipped with comprehensive website knowledge and can provide intelligent navigation assistance."""
+    base_prompt = f"""You are {bot_name}, an intelligent AI assistant embedded on a website to help visitors with all their questions and needs. You are equipped with comprehensive website knowledge and can provide intelligent navigation assistance.
+
+**PLATFORM CONTEXT:**
+- Platform: {platform.upper()}
+- Voice Mode: {voice_mode.upper()}
+- {current_platform['response_length']}
+- {current_platform['voice_note']}
+- {current_platform['interaction']}
+- Voice Instructions: {voice_instructions.get(voice_mode, voice_instructions['full'])}"""
     
     # Add personalization based on visitor context
     if visitor_context and visitor_context.get('is_returning_visitor'):
@@ -1259,9 +1295,9 @@ def create_system_prompt_with_memory(site_config: Dict[str, Any], visitor_contex
 - You can provide step-by-step navigation instructions
 - You can suggest related content and help users discover relevant information
 
-**CONVERSATION STYLE:**
+**PLATFORM-SPECIFIC CONVERSATION STYLE:**
 - Be friendly, professional, and conversational
-- Keep responses concise (under 200 words) for voice compatibility
+- {current_platform['response_length']}
 - Remember conversation history and maintain context
 - Ask clarifying questions when needed to better understand user intent
 - Provide specific, actionable information and navigation guidance
@@ -1282,12 +1318,56 @@ Remember: You are not just answering questions, you are actively helping visitor
     
     return full_prompt
 
-def generate_contextual_demo_response_with_memory(message: str, conversation_history: List[Dict[str, Any]], visitor_context: Dict[str, Any]) -> str:
-    """Generate demo responses with conversation context and visitor memory"""
+def filter_ai_response(response: str, platform: str = "desktop", voice_mode: str = "full") -> str:
+    """Filter AI responses for inappropriate content while preserving helpful information with platform optimization"""
+    if not response:
+        return "I apologize, but I couldn't generate a proper response. Please try again."
+    
+    # Remove any potential script injection
+    for pattern in BLOCKED_PATTERNS:
+        response = re.sub(pattern, '', response, flags=re.IGNORECASE)
+    
+    # Basic profanity filter (minimal to preserve natural conversation)
+    profanity_words = [
+        'fuck', 'shit', 'bitch', 'ass', 'damn'
+    ]
+    
+    for word in profanity_words:
+        response = re.sub(r'\b' + re.escape(word) + r'\b', '[filtered]', response, flags=re.IGNORECASE)
+    
+    # Platform-specific length limits
+    if platform == "ios":
+        max_length = 400 if voice_mode == "text-only" else 300
+    elif platform == "android":
+        max_length = 600 if voice_mode == "text-only" else 500
+    else:
+        max_length = 800 if voice_mode == "text-only" else 600
+    
+    if len(response) > max_length:
+        response = response[:max_length-3] + "..."
+    
+    return response.strip()
+
+def generate_contextual_demo_response_with_memory_and_platform(
+    message: str, 
+    conversation_history: List[Dict[str, Any]], 
+    visitor_context: Dict[str, Any],
+    platform: str = "desktop",
+    voice_mode: str = "full"
+) -> str:
+    """Generate demo responses with conversation context, visitor memory, and platform optimization"""
     message_lower = message.lower()
     
     # Check if this is a returning visitor
     is_returning = visitor_context and visitor_context.get('is_returning_visitor', False)
+    
+    # Platform-specific response adjustment
+    if platform == "ios":
+        max_words = 40 if voice_mode != "text-only" else 60
+    elif platform == "android":
+        max_words = 50 if voice_mode != "text-only" else 70
+    else:
+        max_words = 80 if voice_mode != "text-only" else 100
     
     # Personalized greetings for returning visitors
     if any(greeting in message_lower for greeting in ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening']):
@@ -1296,31 +1376,36 @@ def generate_contextual_demo_response_with_memory(message: str, conversation_his
             total_conversations = visitor_context.get('total_conversations', 0)
             
             if days_since_last == 0:
-                return f"Welcome back! I see we've been talking today. I'm here to continue helping you with anything you need on this website. How can I assist you further?"
+                base_response = f"Welcome back! I see we've been talking today. I'm here to continue helping you with anything you need on this website. How can I assist you further?"
             elif days_since_last == 1:
-                return f"Welcome back! Good to see you again so soon. We've had {total_conversations} conversations before. How can I help you today?"
+                base_response = f"Welcome back! Good to see you again so soon. We've had {total_conversations} conversations before. How can I help you today?"
             elif days_since_last <= 7:
-                return f"Welcome back! It's been {days_since_last} days since we last chatted. I remember our previous conversations about {', '.join(visitor_context.get('recent_topics', ['general topics']))}. How can I help you today?"
+                base_response = f"Welcome back! It's been {days_since_last} days since we last chatted. I remember our previous conversations about {', '.join(visitor_context.get('recent_topics', ['general topics']))}. How can I help you today?"
             else:
-                return f"Welcome back! It's been a while since we last talked ({days_since_last} days ago). I'm here to help with anything you need on this website. What can I assist you with?"
+                base_response = f"Welcome back! It's been a while since we last talked ({days_since_last} days ago). I'm here to help with anything you need on this website. What can I assist you with?"
         else:
             if conversation_history:
-                return "Hello again! How else can I assist you today?"
+                base_response = "Hello again! How else can I assist you today?"
             else:
-                return "Hello! I'm your AI assistant, ready to help you navigate this website and answer any questions you have. What can I help you with today?"
+                base_response = "Hello! I'm your AI assistant, ready to help you navigate this website and answer any questions you have. What can I help you with today?"
+    else:
+        # Use the original contextual response function with memory enhancements
+        base_response = generate_contextual_demo_response(message, conversation_history)
+        
+        # Add personalization for returning visitors
+        if is_returning and visitor_context:
+            recent_topics = visitor_context.get('recent_topics', [])
+            if recent_topics:
+                # If the current question relates to previous topics, mention it
+                current_topics = extract_topics_from_messages([message])
+                common_topics = set(recent_topics) & set(current_topics)
+                if common_topics:
+                    base_response += f" I notice you've asked about {', '.join(common_topics)} before - I'm here to help you dive deeper into this topic!"
     
-    # Use the original contextual response function with memory enhancements
-    base_response = generate_contextual_demo_response(message, conversation_history)
-    
-    # Add personalization for returning visitors
-    if is_returning and visitor_context:
-        recent_topics = visitor_context.get('recent_topics', [])
-        if recent_topics:
-            # If the current question relates to previous topics, mention it
-            current_topics = extract_topics_from_messages([message])
-            common_topics = set(recent_topics) & set(current_topics)
-            if common_topics:
-                base_response += f" I notice you've asked about {', '.join(common_topics)} before - I'm here to help you dive deeper into this topic!"
+    # Trim response to platform-appropriate length
+    words = base_response.split()
+    if len(words) > max_words:
+        base_response = ' '.join(words[:max_words]) + "..."
     
     return base_response
 
