@@ -893,10 +893,11 @@ const VoiceWidget = ({ config = {} }) => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Controls */}
+          {/* Enhanced Voice Controls with Platform-Specific UI */}
           <div className="widget-controls">
-            {widgetConfig.voice_enabled && (
+            {widgetConfig.voice_enabled && (voiceMode === 'full' || voiceMode === 'speech-only') && (
               <div className="voice-controls">
+                {/* Platform-specific voice button */}
                 <button
                   onClick={startListening}
                   disabled={isListening || isProcessing}
@@ -905,7 +906,8 @@ const VoiceWidget = ({ config = {} }) => {
                     backgroundColor: isListening ? widgetConfig.theme.secondary_color : widgetConfig.theme.primary_color,
                     color: widgetConfig.theme.background_color
                   }}
-                  aria-label="Start voice input"
+                  aria-label={platformInfo?.isIOS ? "Tap to speak" : "Click to speak"}
+                  title={platformInfo?.isIOS ? "Tap and speak immediately" : "Click and speak clearly"}
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" stroke="currentColor" strokeWidth="2"/>
@@ -914,6 +916,23 @@ const VoiceWidget = ({ config = {} }) => {
                     <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 </button>
+                
+                {/* Voice Mode Indicator */}
+                {voiceMode === 'speech-only' && (
+                  <div className="voice-mode-indicator" title="Voice output only (speech recognition limited)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M11 5L6 9H2v6h4l5 4V5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                )}
+                
+                {/* Platform-specific help text */}
+                {platformInfo?.isIOS && (
+                  <div className="ios-help-text">
+                    <small>Tap mic, speak immediately</small>
+                  </div>
+                )}
                 
                 {isSpeaking && (
                   <button
@@ -934,7 +953,7 @@ const VoiceWidget = ({ config = {} }) => {
               </div>
             )}
             
-            {/* Text Input Section */}
+            {/* Text input always available as fallback */}
             <div className="text-input-section">
               <form onSubmit={handleTextSubmit} className="text-input-form">
                 <input
@@ -942,7 +961,11 @@ const VoiceWidget = ({ config = {} }) => {
                   value={textInput}
                   onChange={(e) => setTextInput(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Type your message..."
+                  placeholder={
+                    voiceMode === 'text-only' ? 'Type your message...' :
+                    platformInfo?.isIOS ? 'Type message or tap mic to speak...' :
+                    'Type message or click mic to speak...'
+                  }
                   disabled={isProcessing}
                   className="text-input"
                   style={{
