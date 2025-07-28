@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 import re
 
 # Configuration
-BASE_URL = "https://7c22ebce-6df8-4589-98e2-2d39a78cddd6.preview.emergentagent.com"
+BASE_URL = "https://0f38d26a-3cc7-460b-a771-19fe6f1ae7cc.preview.emergentagent.com"
 API_BASE = f"{BASE_URL}/api"
 
 def print_test_header(test_name):
