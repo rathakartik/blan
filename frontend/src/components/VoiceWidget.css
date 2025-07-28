@@ -230,6 +230,7 @@
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 .voice-btn {
@@ -276,6 +277,97 @@
 
 .stop-btn:hover {
   transform: scale(1.05);
+}
+
+/* Platform-specific UI elements */
+.voice-mode-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #F3F4F6;
+  color: #6B7280;
+  cursor: help;
+  transition: all 0.2s ease;
+}
+
+.voice-mode-indicator:hover {
+  background-color: #E5E7EB;
+  color: #374151;
+}
+
+.ios-help-text {
+  flex: 1 100%;
+  text-align: center;
+  margin-top: 4px;
+  color: #6B7280;
+  font-size: 11px;
+  font-style: italic;
+}
+
+.ios-help-text small {
+  background-color: #F3F4F6;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #E5E7EB;
+}
+
+/* Enhanced responsive design for mobile platforms */
+@media (max-width: 480px) {
+  .voice-controls {
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  
+  .voice-btn {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .stop-btn {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .voice-mode-indicator {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .ios-help-text {
+    font-size: 10px;
+  }
+}
+
+/* iOS-specific styles */
+@supports (-webkit-touch-callout: none) {
+  .voice-btn {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  .voice-btn:active {
+    transform: scale(0.9);
+  }
+  
+  .ios-help-text {
+    animation: fadeIn 0.3s ease-in;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Text Input Section */
