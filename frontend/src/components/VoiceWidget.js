@@ -417,6 +417,7 @@ const VoiceWidget = ({ config = {} }) => {
     setMessages(prev => [...prev, message]);
   };
 
+  // Enhanced speech synthesis with platform-specific voice selection
   const speakMessage = (text) => {
     if (!synthesisRef.current) return;
 
@@ -425,15 +426,84 @@ const VoiceWidget = ({ config = {} }) => {
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = widgetConfig.language;
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
+    
+    // Platform-specific voice configuration
+    if (platformInfo?.isIOS) {
+      // iOS-specific settings
+      utterance.rate = 0.8; // Slightly slower for iOS
+      utterance.pitch = 1.0;
+      utterance.volume = 0.8; // Slightly quieter for iOS
+      
+      // Try to use a better voice for iOS
+      const voices = synthesisRef.current.getVoices();
+      const iosVoice = voices.find(voice => 
+        voice.lang.startsWith(widgetConfig.language.split('-')[0]) && 
+        (voice.name.includes('Samantha') || voice.name.includes('Karen'))
+      );
+      if (iosVoice) {
+        utterance.voice = iosVoice;
+      }
+    } else if (platformInfo?.isAndroid) {
+      // Android-specific settings
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      
+      const voices = synthesisRef.current.getVoices();
+      const androidVoice = voices.find(voice => 
+        voice.lang.startsWith(widgetConfig.language.split('-')[0])
+      );
+      if (androidVoice) {
+        utterance.voice = androidVoice;
+      }
+    } else {
+      // Desktop settings
+      utterance.rate = 0.9;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      
+      // Try to find a good quality voice
+      const voices = synthesisRef.current.getVoices();
+      const desktopVoice = voices.find(voice => 
+        voice.lang.startsWith(widgetConfig.language.split('-')[0]) && 
+        voice.localService === false // Prefer cloud voices for better quality
+      ) || voices.find(voice => 
+        voice.lang.startsWith(widgetConfig.language.split('-')[0])
+      );
+      
+      if (desktopVoice) {
+        utterance.voice = desktopVoice;
+      }
+    }
 
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      console.log('🔊 Speech synthesis started');
+    };
+    
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      console.log('🔇 Speech synthesis ended');
+    };
+    
+    utterance.onerror = (event) => {
+      setIsSpeaking(false);
+      console.error('❌ Speech synthesis error:', event);
+    };
 
-    synthesisRef.current.speak(utterance);
+    // Platform-specific speech synthesis execution
+    if (platformInfo?.isIOS) {
+      // iOS requires user interaction for speech synthesis
+      // The speech will only work if this is called within a user interaction context
+      try {
+        synthesisRef.current.speak(utterance);
+      } catch (error) {
+        console.error('iOS speech synthesis error:', error);
+      }
+    } else {
+      // Other platforms can speak directly
+      synthesisRef.current.speak(utterance);
+    }
   };
 
   // Enhanced handleUserMessage with real-time optimization and retry logic
