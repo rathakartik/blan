@@ -13,6 +13,10 @@ const VoiceWidget = ({ config = {} }) => {
   const [textInput, setTextInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [visitorId, setVisitorId] = useState(null);
+  const [platformInfo, setPlatformInfo] = useState(null);
+  const [voiceMode, setVoiceMode] = useState('full'); // 'full', 'speech-only', 'text-only'
+  const [permissionGranted, setPermissionGranted] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   
   // Generate or retrieve visitor ID
   useEffect(() => {
