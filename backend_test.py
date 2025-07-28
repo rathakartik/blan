@@ -2519,12 +2519,19 @@ def test_voice_functionality():
     return all_passed
 
 def main():
-    """Run all backend API tests"""
+    """Run all backend API tests with focus on voice functionality"""
     print("🚀 Starting AI Voice Assistant Backend API Tests")
     print(f"Testing against: {BASE_URL}")
     print(f"Timestamp: {datetime.now().isoformat()}")
     
     test_results = {}
+    
+    # PRIORITY: Voice Functionality Tests (as requested in review)
+    print("\n" + "="*80)
+    print("PRIORITY: AI VOICE ASSISTANT FUNCTIONALITY TESTS")
+    print("="*80)
+    
+    test_results["voice_functionality"] = test_voice_functionality()
     
     # Run Phase 1 tests (existing widget functionality)
     print("\n" + "="*60)
@@ -2586,9 +2593,15 @@ def main():
     test_results["complete_dashboard_flow"] = test_complete_dashboard_flow()
     
     # Print summary
-    print(f"\n{'='*60}")
+    print(f"\n{'='*80}")
     print("TEST SUMMARY")
-    print(f"{'='*60}")
+    print(f"{'='*80}")
+    
+    # Voice functionality results (PRIORITY)
+    print("\nPRIORITY - Voice Functionality:")
+    voice_result = test_results.get("voice_functionality", False)
+    voice_status = "✅ PASSED" if voice_result else "❌ FAILED"
+    print(f"  VOICE FUNCTIONALITY: {voice_status}")
     
     # Phase 1 results
     print("\nPhase 1 (Widget API):")
@@ -2650,11 +2663,17 @@ def main():
     
     print(f"\nOverall Result: {passed_tests}/{total_tests} tests passed")
     
+    # Special focus on voice functionality
+    if voice_result:
+        print("🎉 VOICE FUNCTIONALITY TESTS PASSED! Backend supports voice conversations.")
+    else:
+        print("⚠️ VOICE FUNCTIONALITY TESTS FAILED! Please check voice-related backend implementation.")
+    
     if passed_tests == total_tests:
         print("🎉 All tests passed! Backend API is working correctly.")
         return True
     else:
-        print("⚠️  Some tests failed. Please check the detailed output above.")
+        print("⚠️ Some tests failed. Please check the detailed output above.")
         return False
 
 if __name__ == "__main__":
