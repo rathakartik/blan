@@ -305,16 +305,44 @@ const VoiceWidget = ({ config = {} }) => {
   };
 
   const startListening = () => {
+    console.log('🎤 startListening called');
+    console.log('speechSupported:', speechSupported);
+    console.log('recognitionRef.current:', recognitionRef.current);
+    
     if (!speechSupported || !recognitionRef.current) {
+      console.error('❌ Speech recognition not supported or ref is null');
       addMessage('system', 'Speech recognition is not supported in your browser.');
       return;
     }
 
+    // Check if already listening
+    if (isListening) {
+      console.log('⚠️ Already listening, stopping first');
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        console.error('Error stopping recognition:', e);
+      }
+      return;
+    }
+
     try {
+      console.log('🎯 Attempting to start speech recognition...');
+      setIsListening(true); // Set listening state immediately for UI feedback
       recognitionRef.current.start();
+      console.log('✅ Speech recognition start() called successfully');
     } catch (error) {
-      console.error('Recognition start error:', error);
-      addMessage('system', 'Error starting voice recognition. Please try again.');
+      console.error('❌ Recognition start error:', error);
+      setIsListening(false); // Reset state if failed
+      
+      // More specific error messages
+      if (error.name === 'NotAllowedError') {
+        addMessage('system', 'Microphone access denied. Please allow microphone permission and try again.');
+      } else if (error.name === 'NotSupportedError') {
+        addMessage('system', 'Speech recognition is not supported in your browser.');
+      } else {
+        addMessage('system', `Error starting voice recognition: ${error.message}. Please try again.`);
+      }
     }
   };
 
