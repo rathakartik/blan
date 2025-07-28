@@ -298,38 +298,64 @@ const VoiceWidget = ({ config = {} }) => {
     }
   }, [platformInfo, widgetConfig.language, voiceMode]);
 
-  // Auto-greet when widget opens - separate effect to prevent multiple triggers
+  // Platform-aware auto-greet when widget opens
   useEffect(() => {
-    if (widgetConfig.auto_greet && !hasGreeted && isOpen) {
+    if (widgetConfig.auto_greet && !hasGreeted && isOpen && platformInfo) {
       const greetingTimer = setTimeout(() => {
         console.log('Triggering auto-greeting...');
-        if (widgetConfig.voice_enabled && synthesisRef.current) {
-          speakMessage(widgetConfig.greeting_message);
+        
+        // Platform-specific voice greeting
+        if (widgetConfig.voice_enabled && synthesisRef.current && (voiceMode === 'full' || voiceMode === 'speech-only')) {
+          // iOS requires user interaction for speech synthesis
+          if (platformInfo.isIOS) {
+            console.log('iOS: Skipping auto-voice greeting, requires user interaction');
+            // Add message suggesting user to tap for voice
+            addMessage('bot', widgetConfig.greeting_message);
+            addMessage('system', '🍎 Tap the microphone to hear my voice!');
+          } else {
+            // Desktop and Android can auto-speak
+            try {
+              speakMessage(widgetConfig.greeting_message);
+            } catch (error) {
+              console.error('Auto-speak error:', error);
+            }
+          }
         }
+        
         addMessage('bot', widgetConfig.greeting_message);
         setHasGreeted(true);
         logInteraction('auto_greeting');
-      }, 500); // Reduced delay for faster response
+      }, 500);
 
       return () => clearTimeout(greetingTimer);
     }
-  }, [widgetConfig.auto_greet, widgetConfig.voice_enabled, widgetConfig.greeting_message, hasGreeted, isOpen]);
+  }, [widgetConfig.auto_greet, widgetConfig.voice_enabled, widgetConfig.greeting_message, hasGreeted, isOpen, platformInfo, voiceMode]);
 
-  // IMMEDIATE auto-voice greeting on page load (without requiring widget to be opened)
+  // Enhanced immediate auto-voice greeting on page load with platform detection
   useEffect(() => {
-    let enableAutoVoice; // Declare function variable
+    let enableAutoVoice;
 
-    if (widgetConfig.auto_greet && widgetConfig.voice_enabled && !hasGreeted && synthesisRef.current) {
+    if (widgetConfig.auto_greet && widgetConfig.voice_enabled && !hasGreeted && synthesisRef.current && platformInfo) {
+      // Skip immediate auto-voice for iOS due to autoplay restrictions
+      if (platformInfo.isIOS) {
+        console.log('🍎 iOS: Skipping immediate auto-voice greeting due to autoplay restrictions');
+        return;
+      }
+      
       const immediateVoiceTimer = setTimeout(() => {
         console.log('🔊 Starting immediate auto-voice greeting on page load...');
         
         // Create a user interaction handler to enable autoplay
         enableAutoVoice = () => {
-          if (widgetConfig.voice_enabled && synthesisRef.current && !hasGreeted) {
-            speakMessage(widgetConfig.greeting_message);
-            setHasGreeted(true);
-            logInteraction('immediate_voice_greeting');
-            console.log('✅ Immediate voice greeting activated');
+          if (widgetConfig.voice_enabled && synthesisRef.current && !hasGreeted && !platformInfo.isIOS) {
+            try {
+              speakMessage(widgetConfig.greeting_message);
+              setHasGreeted(true);
+              logInteraction('immediate_voice_greeting');
+              console.log('✅ Immediate voice greeting activated');
+            } catch (error) {
+              console.error('Immediate voice greeting error:', error);
+            }
           }
           // Remove the event listener after first use
           document.removeEventListener('click', enableAutoVoice);
@@ -361,7 +387,7 @@ const VoiceWidget = ({ config = {} }) => {
         }
       };
     }
-  }, [widgetConfig.auto_greet, widgetConfig.voice_enabled, widgetConfig.greeting_message, hasGreeted]);
+  }, [widgetConfig.auto_greet, widgetConfig.voice_enabled, widgetConfig.greeting_message, hasGreeted, platformInfo]);
 
   // Widget initialization - ensure immediate setup
   useEffect(() => {
