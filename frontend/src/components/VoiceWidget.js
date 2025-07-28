@@ -109,22 +109,41 @@ const VoiceWidget = ({ config = {} }) => {
 
   const widgetConfig = useMemo(() => ({ ...defaultConfig, ...config }), [config]);
 
-  // Initialize speech recognition and synthesis
+  // Enhanced speech recognition initialization with platform-specific configuration
   useEffect(() => {
-    console.log('🎯 Initializing speech recognition...');
+    if (!platformInfo) return;
+    
+    console.log('🎯 Initializing speech recognition with platform-specific settings...');
     
     // Check for speech recognition support
-    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    if (platformInfo.supports.speechRecognition && (voiceMode === 'full' || voiceMode === 'speech-only')) {
       console.log('✅ Speech recognition API available');
       setSpeechSupported(true);
       
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
       
-      // Enhanced configuration for better recognition
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = true; // Enable interim results for better UX
-      recognitionRef.current.maxAlternatives = 1;
+      // Platform-specific configuration
+      if (platformInfo.isIOS) {
+        // iOS-specific settings
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = false; // iOS doesn't handle interim results well
+        recognitionRef.current.maxAlternatives = 1;
+        console.log('🍎 iOS speech recognition configured');
+      } else if (platformInfo.isAndroid) {
+        // Android-specific settings
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = true;
+        recognitionRef.current.maxAlternatives = 3;
+        console.log('🤖 Android speech recognition configured');
+      } else {
+        // Desktop (Windows/Linux/Mac) settings
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = true;
+        recognitionRef.current.maxAlternatives = 1;
+        console.log('🖥️ Desktop speech recognition configured');
+      }
+      
       recognitionRef.current.lang = widgetConfig.language;
 
       recognitionRef.current.onstart = () => {
@@ -133,7 +152,7 @@ const VoiceWidget = ({ config = {} }) => {
         logInteraction('voice_start');
         
         // Add helpful message when first time using voice
-        if (messages.length === 1) { // Only auto-greeting message exists
+        if (messages.length === 1 && !platformInfo.isIOS) { // Skip on iOS to avoid confusion
           addMessage('system', '🎤 I\'m listening! Please speak clearly and I\'ll respond to your voice.');
         }
       };
@@ -141,23 +160,40 @@ const VoiceWidget = ({ config = {} }) => {
       recognitionRef.current.onresult = (event) => {
         console.log('🗣️ Speech recognition result:', event);
         
-        // Get the final result or the latest interim result
+        // Handle results differently based on platform
         let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          if (event.results[i].isFinal) {
-            transcript = event.results[i][0].transcript.trim();
-            break;
-          } else {
-            // For interim results, we could show them as preview (optional)
-            transcript = event.results[i][0].transcript.trim();
+        
+        if (platformInfo.isIOS) {
+          // iOS: Only process final results
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+              transcript = event.results[i][0].transcript.trim();
+              break;
+            }
+          }
+        } else {
+          // Other platforms: Handle interim results for better UX
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+              transcript = event.results[i][0].transcript.trim();
+              break;
+            } else {
+              // Show interim results as preview
+              const interimTranscript = event.results[i][0].transcript.trim();
+              if (interimTranscript) {
+                // Could show interim results in UI (optional)
+                console.log('📝 Interim:', interimTranscript);
+              }
+            }
           }
         }
         
-        console.log('📝 Transcript:', transcript);
+        console.log('📝 Final transcript:', transcript);
         
         // Only process if we have a final result with meaningful content
-        if (transcript && event.results[event.results.length - 1].isFinal) {
+        if (transcript && (platformInfo.isIOS || event.results[event.results.length - 1].isFinal)) {
           setIsListening(false);
+          setRetryCount(0); // Reset retry count on successful recognition
           handleUserMessage(transcript, 'voice');
         }
       };
@@ -166,59 +202,101 @@ const VoiceWidget = ({ config = {} }) => {
         console.error('❌ Speech recognition error:', event.error, event);
         setIsListening(false);
         
-        // Provide more specific and helpful error messages
+        // Platform-specific error handling
         let errorMessage = 'Sorry, I had trouble hearing you. Please try again.';
-        switch (event.error) {
-          case 'no-speech':
-            errorMessage = '🔇 I didn\'t hear anything. Please click the microphone and speak clearly.';
-            break;
-          case 'audio-capture':
-            errorMessage = '🎤 Cannot access your microphone. Please check your microphone is connected and working.';
-            break;
-          case 'not-allowed':
-            errorMessage = '🚫 Microphone access denied. Please allow microphone permission in your browser and try again.';
-            break;
-          case 'network':
-            errorMessage = '🌐 Network error occurred. Please check your internet connection and try again.';
-            break;
-          case 'service-not-allowed':
-            errorMessage = '⚠️ Speech recognition service not available. Please try again later.';
-            break;
-          case 'aborted':
-            errorMessage = '⏹️ Speech recognition was stopped. Click the microphone to try again.';
-            break;
+        
+        if (platformInfo.isIOS) {
+          switch (event.error) {
+            case 'no-speech':
+              errorMessage = '🔇 Tap and hold the microphone, then speak clearly.';
+              break;
+            case 'not-allowed':
+              errorMessage = '🚫 Please allow microphone access in Safari settings and try again.';
+              break;
+            case 'network':
+              errorMessage = '🌐 Voice recognition requires internet connection. Please check your connection.';
+              break;
+            default:
+              errorMessage = '⚠️ Voice recognition failed. Please try typing your message instead.';
+          }
+        } else {
+          switch (event.error) {
+            case 'no-speech':
+              errorMessage = '🔇 I didn\'t hear anything. Please click the microphone and speak clearly.';
+              break;
+            case 'audio-capture':
+              errorMessage = '🎤 Cannot access your microphone. Please check your microphone is connected and working.';
+              break;
+            case 'not-allowed':
+              errorMessage = '🚫 Microphone access denied. Please allow microphone permission in your browser and try again.';
+              break;
+            case 'network':
+              errorMessage = '🌐 Network error occurred. Please check your internet connection and try again.';
+              break;
+            case 'service-not-allowed':
+              errorMessage = '⚠️ Speech recognition service not available. Please try again later.';
+              break;
+            case 'aborted':
+              errorMessage = '⏹️ Speech recognition was stopped. Click the microphone to try again.';
+              break;
+          }
         }
         
         addMessage('system', errorMessage);
+        
+        // Auto-retry logic for certain errors (except permission-related)
+        if (!['not-allowed', 'service-not-allowed'].includes(event.error) && retryCount < 2) {
+          setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+            console.log(`🔄 Auto-retrying speech recognition (attempt ${retryCount + 1}/2)`);
+          }, 2000);
+        }
       };
 
       recognitionRef.current.onend = () => {
         console.log('🔇 Speech recognition ended');
         setIsListening(false);
         
-        // Auto-restart if no result was captured (timeout scenario)
-        // This helps with continuous conversation
-        setTimeout(() => {
-          if (!isListening && messages.length > 1) {
-            console.log('💭 Speech recognition ended without result, suggesting to try again');
-          }
-        }, 500);
+        // Platform-specific end handling
+        if (platformInfo.isIOS) {
+          // iOS: Show helpful message about tap-to-speak
+          setTimeout(() => {
+            if (!isListening && messages.length > 1) {
+              console.log('💭 iOS: Speech recognition ended, ready for next interaction');
+            }
+          }, 500);
+        } else {
+          // Other platforms: Standard end handling
+          setTimeout(() => {
+            if (!isListening && messages.length > 1) {
+              console.log('💭 Speech recognition ended without result, ready for retry');
+            }
+          }, 500);
+        }
       };
       
       console.log('✅ Speech recognition initialized successfully');
     } else {
-      console.log('❌ Speech recognition API not available');
+      console.log('❌ Speech recognition API not available or disabled for this platform');
       setSpeechSupported(false);
     }
 
-    // Check for speech synthesis support
-    if ('speechSynthesis' in window) {
+    // Enhanced speech synthesis initialization
+    if (platformInfo.supports.speechSynthesis) {
       console.log('✅ Speech synthesis API available');
       synthesisRef.current = window.speechSynthesis;
+      
+      // Platform-specific synthesis settings
+      if (platformInfo.isIOS) {
+        // iOS requires user interaction for speech synthesis
+        console.log('🍎 iOS speech synthesis configured (requires user interaction)');
+      } else {
+        console.log('🖥️ Desktop speech synthesis configured');
+      }
     } else {
       console.log('❌ Speech synthesis API not available');
     }
-  }, [widgetConfig.language]);
+  }, [platformInfo, widgetConfig.language, voiceMode]);
 
   // Auto-greet when widget opens - separate effect to prevent multiple triggers
   useEffect(() => {
