@@ -145,14 +145,39 @@ const DemoPage = () => {
 
           <section className="instructions-section">
             <h2>How to Use the Widget</h2>
-            <ol>
-              <li>Click the chat icon in the bottom-right corner to open the widget</li>
-              <li>The AI will automatically greet you with a welcome message</li>
-              <li>Click the microphone button to start voice input</li>
-              <li>Speak your question or message clearly</li>
-              <li>The AI will respond both with text and voice</li>
-              <li>Continue the conversation as needed</li>
-            </ol>
+            <div className="instructions-grid">
+              <div className="instruction-category">
+                <h3>🎤 Voice Interaction</h3>
+                <ol>
+                  <li><strong>Open the widget:</strong> Click the chat icon in the bottom-right corner</li>
+                  <li><strong>Allow microphone access:</strong> Your browser will ask for microphone permission - click "Allow"</li>
+                  <li><strong>Start voice input:</strong> Click the blue microphone button</li>
+                  <li><strong>Speak clearly:</strong> Say your question when you see "Listening..." in the header</li>
+                  <li><strong>Wait for response:</strong> The AI will respond with both text and voice</li>
+                  <li><strong>Continue conversation:</strong> Click the microphone again for follow-up questions</li>
+                </ol>
+              </div>
+              
+              <div className="instruction-category">
+                <h3>💬 Text Interaction</h3>
+                <ol>
+                  <li>Open the widget by clicking the chat icon</li>
+                  <li>Type your message in the text input field at the bottom</li>
+                  <li>Press Enter or click the send button</li>
+                  <li>The AI will respond with text and voice</li>
+                </ol>
+              </div>
+              
+              <div className="instruction-category">
+                <h3>🔧 Troubleshooting</h3>
+                <ul>
+                  <li><strong>No microphone access:</strong> Check browser settings and allow microphone permission</li>
+                  <li><strong>Voice not working:</strong> Ensure your microphone is connected and working</li>
+                  <li><strong>No sound:</strong> Check your speakers/headphones and browser volume settings</li>
+                  <li><strong>Not hearing you:</strong> Speak closer to the microphone and more clearly</li>
+                </ul>
+              </div>
+            </div>
           </section>
 
           <section className="support-section">
