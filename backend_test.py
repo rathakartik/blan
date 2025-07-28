@@ -2127,6 +2127,397 @@ def test_visitor_tracking():
     
     return all_passed
 
+def test_voice_functionality():
+    """Test AI Voice Assistant backend voice-specific functionality"""
+    print_test_header("AI Voice Assistant - Voice Functionality Tests")
+    
+    all_passed = True
+    
+    # Test 1: Voice Message Processing via Chat API
+    print(f"\n--- Test 1: Voice Message Processing ---")
+    
+    voice_test_cases = [
+        {
+            "name": "Voice Transcription Message",
+            "payload": {
+                "message": "Hello, I'm speaking to you through voice recognition",
+                "session_id": f"voice-session-{uuid.uuid4()}",
+                "site_id": "demo",
+                "visitor_id": f"voice-visitor-{uuid.uuid4()}",
+                "input_type": "voice"  # Indicate this came from voice input
+            }
+        },
+        {
+            "name": "Voice Question About Products",
+            "payload": {
+                "message": "Can you tell me about your products and services?",
+                "session_id": f"voice-session-{uuid.uuid4()}",
+                "site_id": "demo",
+                "visitor_id": f"voice-visitor-{uuid.uuid4()}",
+                "input_type": "voice"
+            }
+        },
+        {
+            "name": "Voice Navigation Request",
+            "payload": {
+                "message": "How do I navigate to the pricing page?",
+                "session_id": f"voice-session-{uuid.uuid4()}",
+                "site_id": "demo",
+                "visitor_id": f"voice-visitor-{uuid.uuid4()}",
+                "input_type": "voice"
+            }
+        }
+    ]
+    
+    for test_case in voice_test_cases:
+        print(f"\n  Testing: {test_case['name']}")
+        
+        try:
+            response = requests.post(
+                f"{API_BASE}/chat",
+                json=test_case["payload"],
+                headers={"Content-Type": "application/json"},
+                timeout=15
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                print(f"  ✅ Voice message processed successfully")
+                print(f"     Response: {data.get('response', '')[:80]}...")
+                print(f"     Model: {data.get('model', 'Unknown')}")
+                print(f"     Visitor ID: {data.get('visitor_id', 'None')}")
+                
+                # Verify voice-friendly response (should be concise for TTS)
+                response_text = data.get('response', '')
+                if len(response_text) <= 300:  # Voice responses should be concise
+                    print(f"  ✅ Response is voice-friendly length ({len(response_text)} chars)")
+                else:
+                    print(f"  ⚠️ Response might be too long for voice ({len(response_text)} chars)")
+                
+                # Check for required fields
+                required_fields = ["response", "session_id", "visitor_id", "timestamp"]
+                missing_fields = [field for field in required_fields if field not in data]
+                if missing_fields:
+                    print(f"  ❌ Missing required fields: {missing_fields}")
+                    all_passed = False
+                else:
+                    print(f"  ✅ All required fields present")
+                    
+            else:
+                print(f"  ❌ Voice message failed with status {response.status_code}")
+                print(f"     Error: {response.json() if response.content else 'No content'}")
+                all_passed = False
+                
+        except Exception as e:
+            print(f"  ❌ Voice message test failed: {e}")
+            all_passed = False
+    
+    # Test 2: Multi-turn Voice Conversation
+    print(f"\n--- Test 2: Multi-turn Voice Conversation ---")
+    
+    voice_session_id = f"voice-multi-{uuid.uuid4()}"
+    voice_visitor_id = f"voice-visitor-{uuid.uuid4()}"
+    
+    conversation_steps = [
+        "Hello, I'd like to know about your services",
+        "Can you tell me more about pricing?",
+        "What about customer support options?",
+        "Thank you for the information"
+    ]
+    
+    for i, message in enumerate(conversation_steps, 1):
+        try:
+            response = requests.post(
+                f"{API_BASE}/chat",
+                json={
+                    "message": message,
+                    "session_id": voice_session_id,
+                    "site_id": "demo",
+                    "visitor_id": voice_visitor_id,
+                    "input_type": "voice"
+                },
+                headers={"Content-Type": "application/json"},
+                timeout=15
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                print(f"  ✅ Step {i}: {message[:40]}...")
+                print(f"     Conversation length: {data.get('conversation_length', 0)}")
+                print(f"     Session consistent: {data.get('session_id') == voice_session_id}")
+                
+                # Verify conversation continuity
+                if data.get('conversation_length') == i:
+                    print(f"     ✅ Conversation length correct: {i}")
+                else:
+                    print(f"     ❌ Expected length {i}, got {data.get('conversation_length')}")
+                    all_passed = False
+                    
+            else:
+                print(f"  ❌ Step {i} failed with status {response.status_code}")
+                all_passed = False
+                
+        except Exception as e:
+            print(f"  ❌ Step {i} failed: {e}")
+            all_passed = False
+        
+        time.sleep(0.5)
+    
+    # Test 3: Voice-Enabled Widget Configuration
+    print(f"\n--- Test 3: Voice-Enabled Widget Configuration ---")
+    
+    try:
+        response = requests.post(
+            f"{API_BASE}/widget/config",
+            json={"site_id": "demo"},
+            headers={"Content-Type": "application/json"},
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"  ✅ Widget config retrieved successfully")
+            
+            # Check voice-specific settings
+            voice_enabled = data.get('voice_enabled', False)
+            auto_greet = data.get('auto_greet', False)
+            language = data.get('language', '')
+            
+            print(f"     Voice Enabled: {voice_enabled}")
+            print(f"     Auto Greet: {auto_greet}")
+            print(f"     Language: {language}")
+            
+            if voice_enabled:
+                print(f"  ✅ Voice functionality is enabled")
+            else:
+                print(f"  ❌ Voice functionality should be enabled for voice assistant")
+                all_passed = False
+                
+            if auto_greet:
+                print(f"  ✅ Auto-greeting is enabled")
+            else:
+                print(f"  ⚠️ Auto-greeting is disabled (may be intentional)")
+                
+            if language and language.startswith('en'):
+                print(f"  ✅ Language setting is appropriate: {language}")
+            else:
+                print(f"  ⚠️ Language setting: {language}")
+                
+        else:
+            print(f"  ❌ Widget config failed with status {response.status_code}")
+            all_passed = False
+            
+    except Exception as e:
+        print(f"  ❌ Widget config test failed: {e}")
+        all_passed = False
+    
+    # Test 4: Voice Interaction Analytics
+    print(f"\n--- Test 4: Voice Interaction Analytics ---")
+    
+    voice_analytics_cases = [
+        {
+            "name": "Voice Input Interaction",
+            "payload": {
+                "site_id": "demo",
+                "session_id": voice_session_id,
+                "visitor_id": voice_visitor_id,
+                "type": "voice_input",
+                "user_message": "Hello via voice",
+                "ai_response": "Hello! How can I help you today?",
+                "input_method": "voice_recognition"
+            }
+        },
+        {
+            "name": "Voice Output Interaction",
+            "payload": {
+                "site_id": "demo",
+                "session_id": voice_session_id,
+                "visitor_id": voice_visitor_id,
+                "type": "voice_output",
+                "ai_response": "Here's the information you requested",
+                "output_method": "text_to_speech"
+            }
+        },
+        {
+            "name": "Voice Widget Open",
+            "payload": {
+                "site_id": "demo",
+                "session_id": voice_session_id,
+                "visitor_id": voice_visitor_id,
+                "type": "widget_open",
+                "interaction_data": {
+                    "voice_enabled": True,
+                    "auto_greet_triggered": True
+                }
+            }
+        }
+    ]
+    
+    for test_case in voice_analytics_cases:
+        print(f"\n  Testing: {test_case['name']}")
+        
+        try:
+            response = requests.post(
+                f"{API_BASE}/analytics/interaction",
+                json=test_case["payload"],
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("status") == "logged":
+                    print(f"  ✅ Voice interaction logged successfully")
+                else:
+                    print(f"  ❌ Unexpected response: {data}")
+                    all_passed = False
+            else:
+                print(f"  ❌ Voice analytics failed with status {response.status_code}")
+                all_passed = False
+                
+        except Exception as e:
+            print(f"  ❌ Voice analytics test failed: {e}")
+            all_passed = False
+    
+    # Test 5: Voice Error Handling
+    print(f"\n--- Test 5: Voice Error Handling ---")
+    
+    error_test_cases = [
+        {
+            "name": "Empty Voice Message",
+            "payload": {
+                "message": "",
+                "session_id": f"error-session-{uuid.uuid4()}",
+                "site_id": "demo",
+                "input_type": "voice"
+            },
+            "expected_status": 400
+        },
+        {
+            "name": "Voice Message Too Long",
+            "payload": {
+                "message": "This is a very long voice message that exceeds the maximum allowed length for voice input processing. " * 20,
+                "session_id": f"error-session-{uuid.uuid4()}",
+                "site_id": "demo",
+                "input_type": "voice"
+            },
+            "expected_status": 400
+        },
+        {
+            "name": "Missing Site ID for Voice",
+            "payload": {
+                "message": "Hello via voice",
+                "session_id": f"error-session-{uuid.uuid4()}",
+                "input_type": "voice"
+            },
+            "expected_status": 200  # Should still work with fallback
+        }
+    ]
+    
+    for test_case in error_test_cases:
+        print(f"\n  Testing: {test_case['name']}")
+        
+        try:
+            response = requests.post(
+                f"{API_BASE}/chat",
+                json=test_case["payload"],
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            
+            if response.status_code == test_case["expected_status"]:
+                print(f"  ✅ Error handled correctly (status {response.status_code})")
+                
+                if response.status_code == 400:
+                    error_data = response.json()
+                    if "detail" in error_data:
+                        print(f"     Error message: {error_data['detail']}")
+                    else:
+                        print(f"     Error response: {error_data}")
+                        
+            else:
+                print(f"  ❌ Expected status {test_case['expected_status']}, got {response.status_code}")
+                all_passed = False
+                
+        except Exception as e:
+            print(f"  ❌ Error handling test failed: {e}")
+            all_passed = False
+    
+    # Test 6: Voice Session Management
+    print(f"\n--- Test 6: Voice Session Management ---")
+    
+    # Test session isolation for voice conversations
+    session_1 = f"voice-session-1-{uuid.uuid4()}"
+    session_2 = f"voice-session-2-{uuid.uuid4()}"
+    visitor_id = f"voice-visitor-{uuid.uuid4()}"
+    
+    try:
+        # First session
+        response1 = requests.post(
+            f"{API_BASE}/chat",
+            json={
+                "message": "Hello, this is my first voice session",
+                "session_id": session_1,
+                "site_id": "demo",
+                "visitor_id": visitor_id,
+                "input_type": "voice"
+            },
+            headers={"Content-Type": "application/json"},
+            timeout=15
+        )
+        
+        # Second session (same visitor, different session)
+        response2 = requests.post(
+            f"{API_BASE}/chat",
+            json={
+                "message": "Hello, this is my second voice session",
+                "session_id": session_2,
+                "site_id": "demo",
+                "visitor_id": visitor_id,
+                "input_type": "voice"
+            },
+            headers={"Content-Type": "application/json"},
+            timeout=15
+        )
+        
+        if response1.status_code == 200 and response2.status_code == 200:
+            data1 = response1.json()
+            data2 = response2.json()
+            
+            print(f"  ✅ Both voice sessions created successfully")
+            
+            # Verify session isolation
+            if data1.get('conversation_length') == 1 and data2.get('conversation_length') == 1:
+                print(f"  ✅ Voice session isolation working correctly")
+            else:
+                print(f"  ❌ Session isolation failed: lengths {data1.get('conversation_length')}, {data2.get('conversation_length')}")
+                all_passed = False
+                
+            # Verify visitor continuity
+            if data1.get('visitor_id') == data2.get('visitor_id') == visitor_id:
+                print(f"  ✅ Visitor ID consistent across voice sessions")
+            else:
+                print(f"  ❌ Visitor ID inconsistency across sessions")
+                all_passed = False
+                
+            # Check if returning visitor is detected in second session
+            if data2.get('is_returning_visitor'):
+                print(f"  ✅ Returning visitor detected in second voice session")
+            else:
+                print(f"  ⚠️ Returning visitor not detected (may be expected behavior)")
+                
+        else:
+            print(f"  ❌ Voice session management test failed")
+            print(f"     Session 1 status: {response1.status_code}")
+            print(f"     Session 2 status: {response2.status_code}")
+            all_passed = False
+            
+    except Exception as e:
+        print(f"  ❌ Voice session management test failed: {e}")
+        all_passed = False
+    
+    return all_passed
+
 def main():
     """Run all backend API tests"""
     print("🚀 Starting AI Voice Assistant Backend API Tests")
