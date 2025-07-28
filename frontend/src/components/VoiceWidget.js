@@ -539,10 +539,12 @@ const VoiceWidget = ({ config = {} }) => {
     }
   };
 
-  const startListening = () => {
+  // Enhanced startListening with platform-specific microphone permission handling
+  const startListening = async () => {
     console.log('🎤 startListening called');
     console.log('speechSupported:', speechSupported);
     console.log('recognitionRef.current:', recognitionRef.current);
+    console.log('platformInfo:', platformInfo);
     
     if (!speechSupported || !recognitionRef.current) {
       console.error('❌ Speech recognition not supported or ref is null');
@@ -564,40 +566,107 @@ const VoiceWidget = ({ config = {} }) => {
     try {
       console.log('🎯 Attempting to start speech recognition...');
       
-      // Request microphone permission first if needed
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({ audio: true })
-          .then(() => {
-            console.log('🎤 Microphone permission granted');
+      // Platform-specific microphone permission handling
+      if (platformInfo?.isMobile || platformInfo?.isIOS) {
+        // Mobile/iOS: Must request permission first and handle with user interaction
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            console.log('🎤 Mobile microphone permission granted');
+            setPermissionGranted(true);
+            
+            // Stop the stream immediately, we just needed permission
+            stream.getTracks().forEach(track => track.stop());
+            
+            // Add delay for mobile platforms to ensure permission is fully processed
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
             startRecognitionWithFeedback();
-          })
-          .catch((error) => {
-            console.error('❌ Microphone permission error:', error);
-            if (error.name === 'NotAllowedError') {
-              addMessage('system', '🚫 Please allow microphone access to use voice features. Check your browser\'s microphone settings.');
-            } else {
-              // Try to start recognition anyway (fallback for older browsers)
-              startRecognitionWithFeedback();
-            }
-          });
+          } catch (error) {
+            console.error('❌ Mobile microphone permission error:', error);
+            handlePermissionError(error);
+          }
+        } else {
+          // Fallback for older mobile browsers
+          startRecognitionWithFeedback();
+        }
       } else {
-        // Fallback for browsers without getUserMedia
-        startRecognitionWithFeedback();
+        // Desktop: Can try direct recognition start with fallback permission request
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(() => {
+              console.log('🎤 Desktop microphone permission granted');
+              setPermissionGranted(true);
+              startRecognitionWithFeedback();
+            })
+            .catch((error) => {
+              console.error('❌ Desktop microphone permission error:', error);
+              if (error.name === 'NotAllowedError') {
+                handlePermissionError(error);
+              } else {
+                // Try to start recognition anyway (fallback for older browsers)
+                startRecognitionWithFeedback();
+              }
+            });
+        } else {
+          // Fallback for browsers without getUserMedia
+          startRecognitionWithFeedback();
+        }
       }
       
     } catch (error) {
       console.error('❌ Recognition start error:', error);
       setIsListening(false);
-      
-      // More specific error messages
-      if (error.name === 'NotAllowedError') {
-        addMessage('system', '🚫 Microphone access denied. Please allow microphone permission and try again.');
-      } else if (error.name === 'NotSupportedError') {
-        addMessage('system', '❌ Speech recognition is not supported in your browser.');
-      } else {
-        addMessage('system', `❌ Error starting voice recognition: ${error.message}. Please try again.`);
+      handlePermissionError(error);
+    }
+  };
+
+  const handlePermissionError = (error) => {
+    let errorMessage = '';
+    
+    if (platformInfo?.isIOS) {
+      switch (error.name) {
+        case 'NotAllowedError':
+          errorMessage = '🚫 Please allow microphone access in Safari settings: Settings > Safari > Microphone > Allow';
+          break;
+        case 'NotFoundError':
+          errorMessage = '🎤 No microphone found. Please connect a microphone or use the text input.';
+          break;
+        case 'NotSupportedError':
+          errorMessage = '❌ Voice recognition is not supported in your browser version. Please use the text input.';
+          break;
+        default:
+          errorMessage = '⚠️ Voice recognition failed. Please try typing your message instead.';
+      }
+    } else if (platformInfo?.isAndroid) {
+      switch (error.name) {
+        case 'NotAllowedError':
+          errorMessage = '🚫 Please allow microphone access when prompted by your browser.';
+          break;
+        case 'NotFoundError':
+          errorMessage = '🎤 No microphone found. Please check your microphone is connected.';
+          break;
+        default:
+          errorMessage = '⚠️ Voice recognition failed. Please try again or use the text input.';
+      }
+    } else {
+      // Desktop
+      switch (error.name) {
+        case 'NotAllowedError':
+          errorMessage = '🚫 Microphone access denied. Please allow microphone permission in your browser and try again.';
+          break;
+        case 'NotFoundError':
+          errorMessage = '🎤 No microphone found. Please check your microphone is connected and working.';
+          break;
+        case 'NotSupportedError':
+          errorMessage = '❌ Speech recognition is not supported in your browser.';
+          break;
+        default:
+          errorMessage = `❌ Error starting voice recognition: ${error.message}. Please try again.`;
       }
     }
+    
+    addMessage('system', errorMessage);
   };
 
   const startRecognitionWithFeedback = () => {
@@ -606,19 +675,28 @@ const VoiceWidget = ({ config = {} }) => {
       recognitionRef.current.start();
       console.log('✅ Speech recognition start() called successfully');
       
-      // Set a timeout to automatically stop listening after 10 seconds
+      // Platform-specific timeout handling
+      const timeout = platformInfo?.isIOS ? 8000 : 
+                     platformInfo?.isMobile ? 10000 : 
+                     12000; // Longer timeout for desktop
+      
       setTimeout(() => {
         if (isListening && recognitionRef.current) {
-          console.log('⏰ Speech recognition timeout, stopping...');
+          console.log(`⏰ Speech recognition timeout (${timeout}ms), stopping...`);
           try {
             recognitionRef.current.stop();
           } catch (e) {
             console.error('Error stopping recognition on timeout:', e);
           }
           setIsListening(false);
-          addMessage('system', '⏰ Listening timeout. Please click the microphone and try speaking again.');
+          
+          const timeoutMessage = platformInfo?.isIOS ? 
+            '⏰ Listening timeout. Please tap the microphone and speak immediately.' :
+            '⏰ Listening timeout. Please click the microphone and try speaking again.';
+          
+          addMessage('system', timeoutMessage);
         }
-      }, 10000); // 10 second timeout
+      }, timeout);
       
     } catch (error) {
       console.error('❌ startRecognitionWithFeedback error:', error);
