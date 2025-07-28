@@ -418,13 +418,15 @@ async def get_embed_script():
 
 @app.post("/api/chat")
 async def chat_with_ai(request: Request):
-    """Main chat endpoint for the voice widget with 90-day conversation memory"""
+    """Main chat endpoint for the voice widget with 90-day conversation memory and platform optimization"""
     try:
         body = await request.json()
         message = body.get("message", "").strip()
         session_id = body.get("session_id", str(uuid.uuid4()))
         site_id = body.get("site_id", "demo")
         visitor_id = body.get("visitor_id", None)
+        platform = body.get("platform", "unknown")
+        voice_mode = body.get("voice_mode", "full")
         
         # Input validation and sanitization
         if not message:
@@ -437,9 +439,11 @@ async def chat_with_ai(request: Request):
         if not validate_message_content(message):
             raise HTTPException(status_code=400, detail="Invalid message content")
         
-        # Additional rate limiting for chat endpoint
+        # Platform-specific rate limiting
         client_ip = get_client_ip(request)
-        if is_rate_limited(client_ip, "chat", MAX_CHAT_REQUESTS_PER_MINUTE):
+        rate_limit = MAX_CHAT_REQUESTS_PER_MINUTE // 2 if platform in ['ios', 'android'] else MAX_CHAT_REQUESTS_PER_MINUTE
+        
+        if is_rate_limited(client_ip, "chat", rate_limit):
             raise HTTPException(status_code=429, detail="Chat rate limit exceeded")
         
         # Get site-specific configuration and intelligence
@@ -455,7 +459,7 @@ async def chat_with_ai(request: Request):
         # Get visitor's historical context (90 days)
         visitor_context = await get_visitor_context(visitor_id, site_id) if visitor_id else None
         
-        # AI Response logic with improved error handling
+        # AI Response logic with improved error handling and platform optimization
         ai_response = ""
         model_used = "demo"
         
@@ -464,11 +468,11 @@ async def chat_with_ai(request: Request):
                 # Get recent conversation history for immediate context
                 conversation_history = await get_conversation_history(session_id, site_id)
                 
-                # Create conversation context with memory
+                # Create conversation context with memory and platform awareness
                 conversation_context = [
                     {
                         "role": "system",
-                        "content": create_system_prompt_with_memory(site_config, visitor_context)
+                        "content": create_system_prompt_with_memory_and_platform(site_config, visitor_context, platform, voice_mode)
                     }
                 ]
                 
@@ -498,32 +502,38 @@ async def chat_with_ai(request: Request):
                     # Create client with custom API key if provided
                     client = Groq(api_key=api_key) if site_config.get("groq_api_key") else groq_client
                     
+                    # Platform-specific response parameters
+                    max_tokens = 200 if platform in ['ios', 'android'] else 300
+                    temperature = 0.7 if voice_mode == 'speech-only' else 0.8
+                    
                     # Get response from GROQ with enhanced parameters
                     completion = client.chat.completions.create(
                         model="llama3-8b-8192",
                         messages=conversation_context,
-                        max_tokens=300,  # Increased for more detailed responses
-                        temperature=0.8,  # Slightly higher for more creative responses
+                        max_tokens=max_tokens,
+                        temperature=temperature,
                         stream=False
                     )
                     
                     ai_response = completion.choices[0].message.content
                     model_used = "llama3-8b-8192"
                     
-                    # Content filtering for AI response
-                    ai_response = filter_ai_response(ai_response)
+                    # Content filtering for AI response with platform-specific length limits
+                    ai_response = filter_ai_response(ai_response, platform, voice_mode)
                     
                 else:
                     raise Exception("No GROQ API key available")
                 
         except Exception as e:
             logger.error(f"GROQ API error: {e}")
-            # Fallback to demo response with context
+            # Fallback to demo response with context and platform awareness
             conversation_history = await get_conversation_history(session_id, site_id)
-            ai_response = generate_contextual_demo_response_with_memory(message, conversation_history, visitor_context)
+            ai_response = generate_contextual_demo_response_with_memory_and_platform(
+                message, conversation_history, visitor_context, platform, voice_mode
+            )
             model_used = "demo_fallback"
         
-        # Store conversation in MongoDB with visitor ID
+        # Store conversation in MongoDB with visitor ID and platform info
         if db is not None:
             try:
                 conversation_log = {
@@ -534,6 +544,8 @@ async def chat_with_ai(request: Request):
                     "ai_response": ai_response,
                     "timestamp": datetime.utcnow(),
                     "model": model_used,
+                    "platform": platform,
+                    "voice_mode": voice_mode,
                     "tokens_used": len(message.split()) + len(ai_response.split()),
                     "client_ip": client_ip,
                     "user_agent": request.headers.get("user-agent", "unknown"),
@@ -544,7 +556,7 @@ async def chat_with_ai(request: Request):
                 # Create index for automatic cleanup
                 db.conversations.create_index("expires_at", expireAfterSeconds=0)
                 
-                logger.info(f"Conversation logged for visitor {visitor_id}, session {session_id}")
+                logger.info(f"Conversation logged for visitor {visitor_id}, session {session_id}, platform {platform}")
             except Exception as e:
                 logger.error(f"Failed to log conversation: {e}")
         
@@ -557,9 +569,11 @@ async def chat_with_ai(request: Request):
             "visitor_id": visitor_id,
             "timestamp": datetime.utcnow().isoformat(),
             "model": model_used,
+            "platform": platform,
+            "voice_mode": voice_mode,
             "conversation_length": len(conversation_history) + 1,
             "is_returning_visitor": visitor_context is not None and len(visitor_context.get("previous_conversations", [])) > 0,
-            "rate_limit_remaining": MAX_CHAT_REQUESTS_PER_MINUTE - len(rate_limits[client_ip]["chat"])
+            "rate_limit_remaining": rate_limit - len(rate_limits[client_ip]["chat"])
         }
         
     except HTTPException:
