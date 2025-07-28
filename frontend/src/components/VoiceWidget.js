@@ -436,6 +436,7 @@ const VoiceWidget = ({ config = {} }) => {
     synthesisRef.current.speak(utterance);
   };
 
+  // Enhanced handleUserMessage with real-time optimization and retry logic
   const handleUserMessage = async (text, type = 'text') => {
     if (!text.trim() || !visitorId) return;
 
@@ -443,55 +444,84 @@ const VoiceWidget = ({ config = {} }) => {
     addMessage('user', text);
     logInteraction(type === 'voice' ? 'voice_input' : 'text_input');
 
-    try {
-      // Use AbortController for request timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const maxRetries = 3;
+    let attempt = 0;
+    
+    while (attempt < maxRetries) {
+      try {
+        // Dynamic timeout based on platform and connection
+        const timeout = platformInfo?.isMobile ? 8000 : 10000; // Shorter timeout for mobile
+        
+        // Use AbortController for request timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: text,
-          session_id: sessionId,
-          site_id: widgetConfig.site_id,
-          visitor_id: visitorId // Add visitor ID to request
-        }),
-        signal: controller.signal
-      });
+        const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: text,
+            session_id: sessionId,
+            site_id: widgetConfig.site_id,
+            visitor_id: visitorId,
+            platform: platformInfo?.browser || 'unknown',
+            voice_mode: voiceMode
+          }),
+          signal: controller.signal
+        });
 
-      clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        addMessage('bot', data.response);
+
+        // Enhanced speech synthesis with platform-specific handling
+        if (widgetConfig.voice_enabled && synthesisRef.current && (voiceMode === 'full' || voiceMode === 'speech-only')) {
+          // Cancel any ongoing speech before speaking new response
+          synthesisRef.current.cancel();
+          
+          // Platform-specific delay for speech synthesis
+          const speechDelay = platformInfo?.isIOS ? 300 : 100;
+          
+          setTimeout(() => {
+            speakMessage(data.response);
+          }, speechDelay);
+        }
+
+        logInteraction('ai_response');
+        break; // Success, exit retry loop
+        
+      } catch (error) {
+        attempt++;
+        console.error(`Chat error (attempt ${attempt}/${maxRetries}):`, error);
+        
+        if (attempt === maxRetries) {
+          // Final attempt failed
+          if (error.name === 'AbortError') {
+            addMessage('system', '⏰ Request timeout. The server is taking too long to respond. Please try again.');
+          } else if (error.message.includes('Failed to fetch')) {
+            addMessage('system', '🌐 Network connection issue. Please check your internet connection and try again.');
+          } else if (error.message.includes('500')) {
+            addMessage('system', '🔧 Server error. Please try again in a moment.');
+          } else {
+            addMessage('system', '❌ Sorry, I encountered an error. Please try again.');
+          }
+        } else {
+          // Retry with exponential backoff
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 3000);
+          console.log(`🔄 Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
-
-      const data = await response.json();
-      addMessage('bot', data.response);
-
-      // Speak the response if voice is enabled - with priority speaking
-      if (widgetConfig.voice_enabled && synthesisRef.current) {
-        // Cancel any ongoing speech before speaking new response
-        synthesisRef.current.cancel();
-        setTimeout(() => {
-          speakMessage(data.response);
-        }, 100);
-      }
-
-      logInteraction('ai_response');
-    } catch (error) {
-      console.error('Chat error:', error);
-      
-      if (error.name === 'AbortError') {
-        addMessage('system', 'Request timeout. Please try again.');
-      } else {
-        addMessage('system', 'Sorry, I encountered an error. Please try again.');
-      }
-    } finally {
-      setIsProcessing(false);
     }
+    
+    setIsProcessing(false);
   };
 
   const handleTextSubmit = (e) => {
