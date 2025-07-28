@@ -64,45 +64,71 @@ const VoiceWidget = ({ config = {} }) => {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
       
+      // Enhanced configuration for better recognition
       recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
+      recognitionRef.current.interimResults = true; // Enable interim results for better UX
+      recognitionRef.current.maxAlternatives = 1;
       recognitionRef.current.lang = widgetConfig.language;
 
       recognitionRef.current.onstart = () => {
         console.log('🎤 Speech recognition started');
         setIsListening(true);
         logInteraction('voice_start');
+        
+        // Add helpful message when first time using voice
+        if (messages.length === 1) { // Only auto-greeting message exists
+          addMessage('system', '🎤 I\'m listening! Please speak clearly and I\'ll respond to your voice.');
+        }
       };
 
       recognitionRef.current.onresult = (event) => {
         console.log('🗣️ Speech recognition result:', event);
-        const transcript = event.results[0][0].transcript;
+        
+        // Get the final result or the latest interim result
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            transcript = event.results[i][0].transcript.trim();
+            break;
+          } else {
+            // For interim results, we could show them as preview (optional)
+            transcript = event.results[i][0].transcript.trim();
+          }
+        }
+        
         console.log('📝 Transcript:', transcript);
-        setIsListening(false);
-        handleUserMessage(transcript, 'voice');
+        
+        // Only process if we have a final result with meaningful content
+        if (transcript && event.results[event.results.length - 1].isFinal) {
+          setIsListening(false);
+          handleUserMessage(transcript, 'voice');
+        }
       };
 
       recognitionRef.current.onerror = (event) => {
         console.error('❌ Speech recognition error:', event.error, event);
         setIsListening(false);
         
-        // Provide more specific error messages
+        // Provide more specific and helpful error messages
         let errorMessage = 'Sorry, I had trouble hearing you. Please try again.';
         switch (event.error) {
           case 'no-speech':
-            errorMessage = 'No speech detected. Please try speaking again.';
+            errorMessage = '🔇 I didn\'t hear anything. Please click the microphone and speak clearly.';
             break;
           case 'audio-capture':
-            errorMessage = 'Microphone not found or access denied. Please check your microphone settings.';
+            errorMessage = '🎤 Cannot access your microphone. Please check your microphone is connected and working.';
             break;
           case 'not-allowed':
-            errorMessage = 'Microphone access denied. Please allow microphone permission and try again.';
+            errorMessage = '🚫 Microphone access denied. Please allow microphone permission in your browser and try again.';
             break;
           case 'network':
-            errorMessage = 'Network error occurred. Please check your internet connection.';
+            errorMessage = '🌐 Network error occurred. Please check your internet connection and try again.';
             break;
           case 'service-not-allowed':
-            errorMessage = 'Speech recognition service not allowed. Please try again.';
+            errorMessage = '⚠️ Speech recognition service not available. Please try again later.';
+            break;
+          case 'aborted':
+            errorMessage = '⏹️ Speech recognition was stopped. Click the microphone to try again.';
             break;
         }
         
@@ -112,6 +138,14 @@ const VoiceWidget = ({ config = {} }) => {
       recognitionRef.current.onend = () => {
         console.log('🔇 Speech recognition ended');
         setIsListening(false);
+        
+        // Auto-restart if no result was captured (timeout scenario)
+        // This helps with continuous conversation
+        setTimeout(() => {
+          if (!isListening && messages.length > 1) {
+            console.log('💭 Speech recognition ended without result, suggesting to try again');
+          }
+        }, 500);
       };
       
       console.log('✅ Speech recognition initialized successfully');
